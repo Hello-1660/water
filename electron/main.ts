@@ -1,8 +1,10 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { UIConfig } from '../src/config/Config'
 import path from 'node:path'
-
+import fs from 'node:fs/promises'
+import { config } from 'node:process'
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -28,23 +30,23 @@ let win: BrowserWindow | null
 
 function createWindow() {
 	win = new BrowserWindow({
-		icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+		icon: path.join(process.env.VITE_PUBLIC, 'wind.ico'),
 		frame: false,
 		width: 800,
 		height: 600,
 		resizable: false,
-		transparent: true, 
+		// transparent: true, 
 		show: false,
 		webPreferences: {
-			preload: path.join(__dirname, 'preload.mjs'),
+			preload: path.join(MAIN_DIST, 'preload.mjs'),
 			nodeIntegration: false,
 			contextIsolation: true
 		},
 	})
 
 	ipcMain.handle('window:set-position', (_, x: number, y: number) => {
-		// setPosition的第二个参数设为true，避免窗口超出屏幕
-		if (win) win.setPosition(x, y, false)
+	// setPosition的第二个参数设为true，避免窗口超出屏幕
+		if (win) win.setPosition(x, y, true)
 	})
 
 	ipcMain.handle('window:get-position', () => {
@@ -52,6 +54,22 @@ function createWindow() {
 			return win.getPosition()
 		} else {
 			return [0, 0]
+		}
+	})
+
+	ipcMain.handle('config:get', async (_, path: string): Promise<UIConfig | null> => {
+		try {
+			if (path === '') path = process.env.APP_ROOT + '/config.json'
+ 
+			await fs.access(path)
+
+			const data = await fs.readFile(path, 'utf-8')
+			const parseConfig = JSON.parse(data)
+
+		    return new UIConfig(parseConfig)
+		} catch (error) {
+			console.error(error)
+			return null
 		}
 	})
 

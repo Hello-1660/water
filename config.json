@@ -1,0 +1,15 @@
+{
+    "main": {
+        "time": {
+            "fontSize": 100,
+            "fontFamily": "Arial",
+            "fontColor": "#000"
+        },
+        "date": {
+            "fontSize": 100,
+            "fontFamily": "Arial",
+            "fontColor": "#000",
+            "content": ""
+        }
+    }
+}

@@ -1,10 +1,18 @@
 <script setup lang="ts">
-import Hallo from './components/Hallo.vue'
+import Main from './components/Main.vue'
+import { onMounted } from 'vue'
+import { useUiConfigStore } from './stores/uiConfigStore'
 
+const uiConfigStore = useUiConfigStore()
+
+onMounted(async () => {
+  const configPath = ''
+  await uiConfigStore.loadUiConfig(configPath);
+})
 </script>
 
 <template>
-    <Hallo />
+    <Main />
 </template>
 
 <style scoped>

@@ -1,7 +1,17 @@
+var __defProp = Object.defineProperty;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { app, BrowserWindow, ipcMain } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import fs from "node:fs/promises";
+class UIConfig {
+  constructor(parseConfig) {
+    __publicField(this, "mainConfig");
+    this.mainConfig = parseConfig.main;
+  }
+}
 createRequire(import.meta.url);
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path.join(__dirname$1, "..");
@@ -12,27 +22,39 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win;
 function createWindow() {
   win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
+    icon: path.join(process.env.VITE_PUBLIC, "wind.ico"),
     frame: false,
     width: 800,
     height: 600,
     resizable: false,
-    transparent: true,
+    // transparent: true, 
     show: false,
     webPreferences: {
-      preload: path.join(__dirname$1, "preload.mjs"),
+      preload: path.join(MAIN_DIST, "preload.mjs"),
       nodeIntegration: false,
       contextIsolation: true
     }
   });
   ipcMain.handle("window:set-position", (_, x, y) => {
-    if (win) win.setPosition(x, y, false);
+    if (win) win.setPosition(x, y, true);
   });
   ipcMain.handle("window:get-position", () => {
     if (win) {
       return win.getPosition();
     } else {
       return [0, 0];
+    }
+  });
+  ipcMain.handle("config:get", async (_, path2) => {
+    try {
+      if (path2 === "") path2 = process.env.APP_ROOT + "/config.json";
+      await fs.access(path2);
+      const data = await fs.readFile(path2, "utf-8");
+      const parseConfig = JSON.parse(data);
+      return new UIConfig(parseConfig);
+    } catch (error) {
+      console.error(error);
+      return null;
     }
   });
   win.webContents.on("did-finish-load", () => {

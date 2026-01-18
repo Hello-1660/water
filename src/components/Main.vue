@@ -1,33 +1,7 @@
 <script setup lang="ts">
-import { ref, Ref, onUnmounted, onMounted } from 'vue'
-
-const time: Ref<Date> = ref(new Date())
-let timerInterval: NodeJS.Timeout | null = null
-
-const updataTime = (): void => {
-	// 更新时间
-	time.value = new Date()
-
-	// 处理时间差
-	const now: Date = new Date()
-	const nextMinute: Date = new Date(now)
-
-	nextMinute.setMinutes(now.getMinutes() + 1)
-	nextMinute.setSeconds(0)
-	nextMinute.setMilliseconds(0)
-
-	const delay: number = nextMinute.getTime() - now.getTime()
-
-	timerInterval = setTimeout(updataTime, delay)
-}
-
-// 更新时间
-updataTime()
-
-
-
-
-
+import { onMounted, onUnmounted, ref, Ref } from 'vue'
+import DataDisplay from './DataDisplay.vue' 
+import TimeDisplay from './TimeDisplay.vue'
 
 
 const dragContainer: Ref<HTMLElement | null> = ref(null)
@@ -66,8 +40,11 @@ const handleMouseUp = (): void => {
 	isDragging.value = false
 }
 
+
+
+
 // 窗口拖拽
-onMounted(() => {
+onMounted(async () => {
 	if (!dragContainer.value) return
 
 	window.addEventListener('mousedown', handleMouseDown)
@@ -76,27 +53,20 @@ onMounted(() => {
 })
 
 
-
 onUnmounted((): void => {
-	if (timerInterval) clearTimeout(timerInterval)
+	if (!dragContainer.value) return
 
-	if (dragContainer.value) {
-		dragContainer.value.removeEventListener('mousedown', handleMouseDown)
-		window.removeEventListener('mousemove', handleMouseMove)
-		window.removeEventListener('mouseup', handleMouseUp)
-	}
+	dragContainer.value.removeEventListener('mousedown', handleMouseDown)
+	window.removeEventListener('mousemove', handleMouseMove)
+	window.removeEventListener('mouseup', handleMouseUp)
 })
 
 </script>
 	
 <template>
 	<div ref="dragContainer" class="container">
-		<div class="time">
-			{{ time.getHours() + ': ' + time.getMinutes() }}
-		</div>
-		<div class="date">
-			{{ time }}
-		</div>
+		<TimeDisplay />
+		<DataDisplay />
 	</div>
 </template>
 
