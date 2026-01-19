@@ -1,11 +1,8 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
-import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { UIConfig } from '../src/config/Config'
 import path from 'node:path'
 import fs from 'node:fs/promises'
-import { config } from 'node:process'
-const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // The built directory structure
@@ -27,15 +24,21 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
 let win: BrowserWindow | null
+let isStorage: boolean = false
+async function createWindow() {
+	const position: [number, number] | null = await getPosition()
+  	const size: [number, number] | null = await initSize()
 
-function createWindow() {
+	const wSize: number = size ? size[0] : 800
+	const hSize: number = size ? size[1] : 600
+
 	win = new BrowserWindow({
 		icon: path.join(process.env.VITE_PUBLIC, 'wind.ico'),
 		frame: false,
-		width: 800,
-		height: 600,
+		width: wSize,
+		height: hSize,
 		resizable: false,
-		// transparent: true, 
+		transparent: true, 
 		show: false,
 		webPreferences: {
 			preload: path.join(MAIN_DIST, 'preload.mjs'),
@@ -44,13 +47,28 @@ function createWindow() {
 		},
 	})
 
+	if (!position || !position[0] || !position[1]) {
+		win.center()
+	} else {
+		win.setPosition(position[0], position[1])
+	}
+
 	ipcMain.handle('window:set-position', (_, x: number, y: number) => {
-	// setPosition的第二个参数设为true，避免窗口超出屏幕
+		// setPosition的第二个参数设为true，避免窗口超出屏幕
 		if (win) win.setPosition(x, y, true)
+
+		if (!isStorage) {
+			isStorage = true
+			
+			setTimeout(() => {
+				storagePosition()
+				isStorage = false
+			}, 500)
+		}
 	})
 
 	ipcMain.handle('window:get-position', () => {
-  		if (win) {
+		if (win) {
 			return win.getPosition()
 		} else {
 			return [0, 0]
@@ -58,19 +76,7 @@ function createWindow() {
 	})
 
 	ipcMain.handle('config:get', async (_, path: string): Promise<UIConfig | null> => {
-		try {
-			if (path === '') path = process.env.APP_ROOT + '/config.json'
- 
-			await fs.access(path)
-
-			const data = await fs.readFile(path, 'utf-8')
-			const parseConfig = JSON.parse(data)
-
-		    return new UIConfig(parseConfig)
-		} catch (error) {
-			console.error(error)
-			return null
-		}
+		return await readConfig(path)
 	})
 
 	// Test active push message to Renderer-process.
@@ -111,6 +117,76 @@ app.on('activate', () => {
 app.whenReady().then(createWindow)
 
 
+async function storagePosition (): Promise<void> {
+	const uiConfig: UIConfig | null = await readConfig('')
+
+	if (!uiConfig || !win) return
+
+	const position: number[] = win.getPosition()
+	uiConfig.mainConfig.position.x = position[0]
+	uiConfig.mainConfig.position.y = position[1]
+
+	await writeConfig('', uiConfig)
+}	
+ 
+async function getPosition(): Promise<[number, number] | null> {
+	const uiConfig: UIConfig | null = await readConfig('')
+
+	if (!uiConfig || !uiConfig.mainConfig.position) return Promise.resolve(null)
+
+	return Promise.resolve([uiConfig.mainConfig.position.x, uiConfig.mainConfig.position.y])
+}
+
+
+async function initSize() : Promise<[number, number] | null> {
+	const config = await readConfig('')
+	if (!config) return Promise.resolve(null)
+	
+	const timeFontSize: number = config.mainConfig.time.fontSize
+	const TimeFontNumber: number = 5
+	const dataFontSize: number = config.mainConfig.date.fontSize
+	const dataFontNumber: number = config.mainConfig.date.content.length ? config.mainConfig.date.content.length : 12
+
+	const spacing: number = 30
+
+	const width = Math.max((timeFontSize * TimeFontNumber + spacing), (dataFontSize * dataFontNumber + spacing))
+	const height = timeFontSize + dataFontSize + spacing * 2 
+
+	return Promise.resolve([width / 2, height])
+}
+
+
+
+async function readConfig(path: string): Promise<UIConfig | null> {
+	try {
+		if (path === '') path = process.env.APP_ROOT + '/config.json'
+
+		await fs.access(path)
+
+		const data = await fs.readFile(path, 'utf-8')
+		const parseConfig = JSON.parse(data)
+
+
+		return new UIConfig(parseConfig)
+	} catch (error) {
+		console.error(error)
+		return null
+	}
+}
+
+
+async function writeConfig(path: string, config: UIConfig): Promise<void> {
+	try {
+		if (path === '') path = process.env.APP_ROOT + '/config.json'
+
+		await fs.writeFile(path, JSON.stringify(config, null, 2), 'utf-8')
+	} catch (error) {
+		console.error(error)
+	}
+}
+
+
+// 防止界面拖拽卡顿
 if (process.platform === 'win32') {
 	app.commandLine.appendSwitch('high-dpi-support', 'true')
 	app.commandLine.appendSwitch('force-device-scale-factor', '1')

@@ -1,15 +1,19 @@
 {
-    "main": {
-        "time": {
-            "fontSize": 100,
-            "fontFamily": "Arial",
-            "fontColor": "#000"
-        },
-        "date": {
-            "fontSize": 100,
-            "fontFamily": "Arial",
-            "fontColor": "#000",
-            "content": ""
-        }
+  "mainConfig": {
+    "time": {
+      "fontSize": 100,
+      "fontFamily": "Arial",
+      "fontColor": "#000"
+    },
+    "date": {
+      "fontSize": 100,
+      "fontFamily": "Arial",
+      "fontColor": "#000",
+      "content": ""
+    },
+    "position": {
+      "x": 1108,
+      "y": 771
     }
+  }
 }

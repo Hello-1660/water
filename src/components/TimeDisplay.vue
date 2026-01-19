@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, Ref, onUnmounted } from 'vue'
+import { ref, Ref, onUnmounted, computed } from 'vue'
 import { useUiConfigStore  } from '../stores/uiConfigStore'
 import { storeToRefs } from 'pinia'
 
@@ -10,6 +10,14 @@ const { timeStyle } = storeToRefs(uiConfigStore)
 
 const time: Ref<Date> = ref(new Date())
 let timerInterval: NodeJS.Timeout | null = null
+
+const formattedTime = computed(() => {
+  const hours = time.value.getHours().toString().padStart(2, '0')
+  const minutes = time.value.getMinutes().toString().padStart(2, '0')
+  
+  return `${hours}:${minutes}`
+})
+
 
 const updataTime = (): void => {
 	// 更新时间
@@ -32,7 +40,6 @@ const updataTime = (): void => {
 updataTime()
 
 
-
 onUnmounted((): void => {
 	if (timerInterval) clearTimeout(timerInterval)
 })
@@ -41,7 +48,7 @@ onUnmounted((): void => {
 	
 <template>
     <div class="time" :style="timeStyle">
-		{{ time.getHours() + ': ' + time.getMinutes() }}
+		{{ formattedTime }}
 	</div>
 </template>
 

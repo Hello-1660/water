@@ -12,7 +12,13 @@ export interface DateConfig extends MainCommonConfig {
 
 export interface MainUIConfig {
     time: TimeConfig,
-    date: DateConfig
+    date: DateConfig,
+    position: position
+}
+
+interface position {
+    x: number,
+    y: number
 }
 
 
@@ -21,6 +27,6 @@ export class UIConfig {
     public mainConfig: MainUIConfig
 
     constructor(parseConfig: any) {
-        this.mainConfig = parseConfig.main
+        this.mainConfig = parseConfig.mainConfig
     }
 }
