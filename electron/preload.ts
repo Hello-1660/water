@@ -8,6 +8,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	getWindowPosition: (): Promise<[x: number, y: number]> => ipcRenderer.invoke('window:get-position'),
 	// 创建待办事项窗口
 	createNoteWindow: (): Promise<void> => ipcRenderer.invoke('window:create-note-window'),
+	// 关闭待办事项窗口
+	closeNoteWindow: (): Promise<void> => ipcRenderer.invoke('window:close-note-window'),
+	// 最大化待办事项窗口
+	maxNoteWindow: (): Promise<void> => ipcRenderer.invoke('window:max-note-window'),
+	// 最小化待办事项窗口
+	minNoteWindow: (): Promise<void> => ipcRenderer.invoke('window:min-note-window'),
+	// 恢复待办事项窗口
+	restoreNoteWindow: (): Promise<void> => ipcRenderer.invoke('window:restore-note-window'),
 	// 读取配置文件
 	getConfig: (path: string): Promise<UIConfig> => ipcRenderer.invoke('config:get', path)
 })
@@ -19,6 +27,10 @@ declare global {
 			setWindowPosition: (x: number, y: number) => Promise<void>
 			getWindowPosition: () => Promise<[x: number, y: number]>
 			createNoteWindow: () => Promise<void>
+			closeNoteWindow: () => Promise<void>
+			maxNoteWindow: () => Promise<void>
+			minNoteWindow: () => Promise<void>
+			restoreNoteWindow: () => Promise<void>
 			getConfig: (path: string) => Promise<UIConfig>
 		}
 	}

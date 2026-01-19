@@ -42,6 +42,7 @@ async function createWindow() {
 		resizable: false,
 		transparent: true,
 		show: false,
+		skipTaskbar: true,
 		webPreferences: {
 			preload: path.join(MAIN_DIST, 'preload.mjs'),
 			nodeIntegration: false,
@@ -82,6 +83,11 @@ async function createWindow() {
 	})
 
 	ipcMain.handle('window:create-note-window', () => {
+		if (noteWin) {
+			noteWin.show()
+			return
+		} 
+
 		createNoteWindow()
 	})
 
@@ -102,9 +108,9 @@ async function createWindow() {
 async function createNoteWindow() {
 	noteWin = new BrowserWindow({
 		icon: path.join(process.env.VITE_PUBLIC, 'wind.ico'),
-		frame: true,
-		width: 800,
-		height: 800,
+		frame: false,
+		width: 1400,
+		height: 1000,
 		resizable: false,
 		show: false,
 		webPreferences: {
@@ -114,11 +120,38 @@ async function createNoteWindow() {
 		},
 	})
 
+	
+	// 先移除，避免报错
+	ipcMain.removeHandler('window:close-note-window')
+	ipcMain.removeHandler('window:max-note-window')
+	ipcMain.removeHandler('window:min-note-window')
+	ipcMain.removeHandler('window:restore-note-window')
 
-	// ipcMain.handle('config:get', async (_, path: string): Promise<UIConfig | null> => {
-	// 	return await readConfig(path)
-	// })
 
+	ipcMain.handle('window:close-note-window', () => {
+		if (!noteWin) return
+
+		noteWin.close()
+		noteWin = null
+	})
+
+	ipcMain.handle('window:max-note-window', () => {
+		if (!noteWin) return
+
+		noteWin.maximize()
+	})
+
+	ipcMain.handle('window:min-note-window', () => {
+		if (!noteWin) return
+
+		noteWin.minimize()
+	})
+
+	ipcMain.handle('window:restore-note-window', () => {
+		if (!noteWin) return
+
+		noteWin.restore()
+	})
 
 
 	if (VITE_DEV_SERVER_URL) {
