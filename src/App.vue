@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Main from './components/Main.vue'
+import Main from './views/Main.vue'
 import { onMounted } from 'vue'
 import { useUiConfigStore } from './stores/uiConfigStore'
 

@@ -24,10 +24,12 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
 let win: BrowserWindow | null
+let noteWin: BrowserWindow | null
 let isStorage: boolean = false
+
 async function createWindow() {
 	const position: [number, number] | null = await getPosition()
-  	const size: [number, number] | null = await initSize()
+	const size: [number, number] | null = await initSize()
 
 	const wSize: number = size ? size[0] : 800
 	const hSize: number = size ? size[1] : 600
@@ -38,7 +40,7 @@ async function createWindow() {
 		width: wSize,
 		height: hSize,
 		resizable: false,
-		transparent: true, 
+		transparent: true,
 		show: false,
 		webPreferences: {
 			preload: path.join(MAIN_DIST, 'preload.mjs'),
@@ -59,7 +61,7 @@ async function createWindow() {
 
 		if (!isStorage) {
 			isStorage = true
-			
+
 			setTimeout(() => {
 				storagePosition()
 				isStorage = false
@@ -79,10 +81,10 @@ async function createWindow() {
 		return await readConfig(path)
 	})
 
-	// Test active push message to Renderer-process.
-	win.webContents.on('did-finish-load', () => {
-		win?.webContents.send('main-process-message', (new Date).toLocaleString())
+	ipcMain.handle('window:create-note-window', () => {
+		createNoteWindow()
 	})
+
 
 	if (VITE_DEV_SERVER_URL) {
 		win.loadURL(VITE_DEV_SERVER_URL)
@@ -96,6 +98,42 @@ async function createWindow() {
 	})
 }
 
+
+async function createNoteWindow() {
+	noteWin = new BrowserWindow({
+		icon: path.join(process.env.VITE_PUBLIC, 'wind.ico'),
+		frame: true,
+		width: 800,
+		height: 800,
+		resizable: false,
+		show: false,
+		webPreferences: {
+			preload: path.join(MAIN_DIST, 'preload.mjs'),
+			nodeIntegration: false,
+			contextIsolation: true
+		},
+	})
+
+
+	// ipcMain.handle('config:get', async (_, path: string): Promise<UIConfig | null> => {
+	// 	return await readConfig(path)
+	// })
+
+
+
+	if (VITE_DEV_SERVER_URL) {
+		noteWin.loadURL(VITE_DEV_SERVER_URL + '/note')
+	} else {
+		noteWin.loadFile(path.join(RENDERER_DIST, 'note.html'))
+	}
+
+	noteWin.on('ready-to-show', () => {
+		noteWin?.show()
+	})
+}
+
+
+
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
@@ -103,6 +141,7 @@ app.on('window-all-closed', () => {
 	if (process.platform !== 'darwin') {
 		app.quit()
 		win = null
+		noteWin = null
 	}
 })
 
@@ -117,7 +156,7 @@ app.on('activate', () => {
 app.whenReady().then(createWindow)
 
 
-async function storagePosition (): Promise<void> {
+async function storagePosition(): Promise<void> {
 	const uiConfig: UIConfig | null = await readConfig('')
 
 	if (!uiConfig || !win) return
@@ -127,8 +166,8 @@ async function storagePosition (): Promise<void> {
 	uiConfig.mainConfig.position.y = position[1]
 
 	await writeConfig('', uiConfig)
-}	
- 
+}
+
 async function getPosition(): Promise<[number, number] | null> {
 	const uiConfig: UIConfig | null = await readConfig('')
 
@@ -138,10 +177,10 @@ async function getPosition(): Promise<[number, number] | null> {
 }
 
 
-async function initSize() : Promise<[number, number] | null> {
+async function initSize(): Promise<[number, number] | null> {
 	const config = await readConfig('')
 	if (!config) return Promise.resolve(null)
-	
+
 	const timeFontSize: number = config.mainConfig.time.fontSize
 	const TimeFontNumber: number = 5
 	const dataFontSize: number = config.mainConfig.date.fontSize
@@ -150,7 +189,7 @@ async function initSize() : Promise<[number, number] | null> {
 	const spacing: number = 30
 
 	const width = Math.max((timeFontSize * TimeFontNumber + spacing), (dataFontSize * dataFontNumber + spacing))
-	const height = timeFontSize + dataFontSize + spacing * 2 
+	const height = timeFontSize + dataFontSize + spacing * 2
 
 	return Promise.resolve([width / 2, height])
 }

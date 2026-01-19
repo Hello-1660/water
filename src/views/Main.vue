@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, Ref } from 'vue'
-import DataDisplay from './DataDisplay.vue' 
-import TimeDisplay from './TimeDisplay.vue'
+import DataDisplay from '../components/DataDisplay.vue' 
+import TimeDisplay from '../components/TimeDisplay.vue'
 
 
 const dragContainer: Ref<HTMLElement | null> = ref(null)

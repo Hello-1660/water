@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	setWindowPosition: (x: number, y: number): Promise<void> => ipcRenderer.invoke('window:set-position', x, y),
 	// 获取主窗口位置
 	getWindowPosition: (): Promise<[x: number, y: number]> => ipcRenderer.invoke('window:get-position'),
+	// 创建待办事项窗口
+	createNoteWindow: (): Promise<void> => ipcRenderer.invoke('window:create-note-window'),
 	// 读取配置文件
 	getConfig: (path: string): Promise<UIConfig> => ipcRenderer.invoke('config:get', path)
 })
@@ -16,6 +18,7 @@ declare global {
 		electronAPI: {
 			setWindowPosition: (x: number, y: number) => Promise<void>
 			getWindowPosition: () => Promise<[x: number, y: number]>
+			createNoteWindow: () => Promise<void>
 			getConfig: (path: string) => Promise<UIConfig>
 		}
 	}

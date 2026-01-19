@@ -18,6 +18,7 @@ const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
 const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
 let win;
+let noteWin;
 let isStorage = false;
 async function createWindow() {
   const position = await getPosition();
@@ -63,8 +64,8 @@ async function createWindow() {
   ipcMain.handle("config:get", async (_, path2) => {
     return await readConfig(path2);
   });
-  win.webContents.on("did-finish-load", () => {
-    win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
+  ipcMain.handle("window:create-note-window", () => {
+    createNoteWindow();
   });
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
@@ -75,10 +76,34 @@ async function createWindow() {
     win == null ? void 0 : win.show();
   });
 }
+async function createNoteWindow() {
+  noteWin = new BrowserWindow({
+    icon: path.join(process.env.VITE_PUBLIC, "wind.ico"),
+    frame: true,
+    width: 800,
+    height: 800,
+    resizable: false,
+    show: false,
+    webPreferences: {
+      preload: path.join(MAIN_DIST, "preload.mjs"),
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+  if (VITE_DEV_SERVER_URL) {
+    noteWin.loadURL(VITE_DEV_SERVER_URL + "/note");
+  } else {
+    noteWin.loadFile(path.join(RENDERER_DIST, "note.html"));
+  }
+  noteWin.on("ready-to-show", () => {
+    noteWin == null ? void 0 : noteWin.show();
+  });
+}
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
     win = null;
+    noteWin = null;
   }
 });
 app.on("activate", () => {

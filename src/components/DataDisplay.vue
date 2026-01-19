@@ -12,10 +12,13 @@ if (!getUIConfig.value) {
     content.value = 'Hello Water!'
 }
 
+const createNoteWindow = (): void => { 
+	window.electronAPI.createNoteWindow()
+}
 </script>
 	
 <template>
-	<div class="date" :style="dateStyle">
+	<div class="date" @click="createNoteWindow" :style="dateStyle">
 		{{ content }}
 	</div>
 </template>
