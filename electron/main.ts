@@ -116,7 +116,9 @@ async function createNoteWindow() {
 		webPreferences: {
 			preload: path.join(MAIN_DIST, 'preload.mjs'),
 			nodeIntegration: false,
-			contextIsolation: true
+			contextIsolation: true,
+			webSecurity: false, 
+      		spellcheck: false
 		},
 	})
 
