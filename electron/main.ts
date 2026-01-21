@@ -122,6 +122,13 @@ async function createNoteWindow() {
 		},
 	})
 
+
+	noteWin.webContents.on('before-input-event', (event, input) => {
+    	// 拦截 Ctrl++ / Ctrl+- / Ctrl+0 这三个缩放快捷键
+    	if (input.control && ['=', '-', '0'].includes(input.key)) {
+      		event.preventDefault() // 阻止Electron默认缩放行为
+    	}
+  	})
 	
 	// 先移除，避免报错
 	ipcMain.removeHandler('window:close-note-window')

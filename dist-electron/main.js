@@ -97,6 +97,11 @@ async function createNoteWindow() {
       spellcheck: false
     }
   });
+  noteWin.webContents.on("before-input-event", (event, input) => {
+    if (input.control && ["=", "-", "0"].includes(input.key)) {
+      event.preventDefault();
+    }
+  });
   ipcMain.removeHandler("window:close-note-window");
   ipcMain.removeHandler("window:max-note-window");
   ipcMain.removeHandler("window:min-note-window");
