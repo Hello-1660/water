@@ -26,7 +26,8 @@
     "@tiptap/vue-3": "^3.16.0",
     "electron": "30.5.1",
     "pinia": "^3.0.4",
-    "vue": "^3.4.21"
+    "vue": "^3.4.21",
+    "vue-router": "4"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.4",

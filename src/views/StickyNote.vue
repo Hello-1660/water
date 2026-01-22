@@ -132,6 +132,7 @@ const handleData = (data: any) => {
     max-height: 10%;
     border-radius: 20px 20px 0 0;
     transition: height 0.2s ease-in-out;
+    user-select: none;
 }
 
 .func:hover {
