@@ -17,7 +17,7 @@ const props = defineProps({
     }
 })
 
-const emit = defineEmits(['save', 'data'])
+const emit = defineEmits(['save'])
 
 
 
@@ -153,11 +153,15 @@ const handleSave = () => {
     try {
         const content = getEditorContent()
         
-        emit('save', 'success')
-        emit('data', content)
+        emit('save', {
+            msg : 'success',
+            data: content
+        })
     } catch (error) {
-        emit('save', (error as Error).message.toString())
-        emit('data', { html: '', text: '', json: '' })
+        emit('save', {
+            msg : 'error',
+            data: ''
+        })
     }
 }
 

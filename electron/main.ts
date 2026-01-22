@@ -3,7 +3,11 @@ import { fileURLToPath } from 'node:url'
 import { UIConfig } from '../src/config/Config'
 import path from 'node:path'
 import fs from 'node:fs/promises'
+
+
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const DATADIR = 'data'
 
 // The built directory structure
 //
@@ -22,6 +26,10 @@ export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
+
+
+let isDev: boolean = process.env.NODE_ENV === 'development'
+
 
 let win: BrowserWindow | null
 let noteWin: BrowserWindow | null
@@ -135,6 +143,8 @@ async function createNoteWindow() {
 	ipcMain.removeHandler('window:max-note-window')
 	ipcMain.removeHandler('window:min-note-window')
 	ipcMain.removeHandler('window:restore-note-window')
+	ipcMain.removeHandler('file:save')
+
 
 
 	ipcMain.handle('window:close-note-window', () => {
@@ -160,6 +170,10 @@ async function createNoteWindow() {
 		if (!noteWin) return
 
 		noteWin.restore()
+	})
+
+	ipcMain.handle('file:save', (_, name: string, content: string[]) => {
+		saveFile(name, content)
 	})
 
 
@@ -196,7 +210,10 @@ app.on('activate', () => {
 	}
 })
 
-app.whenReady().then(createNoteWindow)
+app.whenReady().then(async () => {
+	createNoteWindow()
+	await createAppDataDir()
+})
 
 
 async function storagePosition(): Promise<void> {
@@ -266,6 +283,70 @@ async function writeConfig(path: string, config: UIConfig): Promise<void> {
 		console.error(error)
 	}
 }
+
+
+// 获取文件保存目录
+function getInstallSiblingDir(): string {
+	try {
+		if (isDev) {
+			return path.resolve(__dirname, '../')
+		}
+
+		// 1. 获取应用可执行文件路径（跨平台兼容）
+		const exePath = app.getPath('exe')
+		const exeDir = path.dirname(exePath)
+
+		return exeDir
+	} catch (error) {
+		console.error('解析安装目录失败：', error)
+		return app.getPath('documents')
+	}
+}
+
+
+// 判断文件夹是否存在 
+async function isFolderExist(path: string) {
+	try {
+		await fs.access(path, 0)
+		const stats = await fs.stat(path)
+		return stats.isDirectory()
+	} catch (error) {
+		return false
+	}
+}
+
+// 创建数据文件夹
+async function createAppDataDir() {
+	const appDataDir = path.join(getInstallSiblingDir(), DATADIR)
+	const exist = await isFolderExist(appDataDir)
+
+	if (!exist) {
+		await fs.mkdir(appDataDir, { recursive: true })
+	}
+}
+
+
+// 保存文件
+function saveFile(name: string, files: string[]): Promise<boolean> {
+	return new Promise(async (resolve, reject) => {
+		if (files.length === 0) {
+			resolve(true)
+			return
+		}
+
+		try {
+			for (const file of files) {
+				const savePath = path.join(getInstallSiblingDir(), DATADIR, name)
+				await fs.writeFile(savePath, file, { encoding: 'utf8' })
+			}
+			resolve(true);
+		} catch (error) {
+			const errMsg = `保存文件失败：${(error as Error).message}`
+			console.error(errMsg)
+			reject(new Error(errMsg))
+		}
+	});
+} 
 
 
 // 防止界面拖拽卡顿

@@ -27,13 +27,14 @@ const updateTheme = (value: boolean) => {
     }
 }
 
-const handleSave = (data: any) => {
-    console.log('保存成功：', data)
+const handleSave = (save: any) => {
+    if (save.msg === 'success') {
+        const msg = window.electronAPI.saveFile('测试.txt', [save.data.text])
+        console.log(msg)
+    } 
 }
 
-const handleData = (data: any) => {
-    console.log('数据：', data)
-}
+
 
 </script>
 
@@ -108,7 +109,10 @@ const handleData = (data: any) => {
             </div>
         </div>
         <div id="editor" ref="editor">
-            <TextEditor :theme="theme" @save="handleSave" @data="handleData" />
+            <TextEditor 
+            :theme="theme" 
+            @save="handleSave" 
+            />
         </div>
     </div>
 </template>

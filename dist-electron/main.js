@@ -12,11 +12,13 @@ class UIConfig {
   }
 }
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
+const DATADIR = "data";
 process.env.APP_ROOT = path.join(__dirname$1, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
 const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
+let isDev = process.env.NODE_ENV === "development";
 let win;
 let noteWin;
 let isStorage = false;
@@ -106,6 +108,7 @@ async function createNoteWindow() {
   ipcMain.removeHandler("window:max-note-window");
   ipcMain.removeHandler("window:min-note-window");
   ipcMain.removeHandler("window:restore-note-window");
+  ipcMain.removeHandler("file:save");
   ipcMain.handle("window:close-note-window", () => {
     if (!noteWin) return;
     noteWin.close();
@@ -122,6 +125,9 @@ async function createNoteWindow() {
   ipcMain.handle("window:restore-note-window", () => {
     if (!noteWin) return;
     noteWin.restore();
+  });
+  ipcMain.handle("file:save", (_, name, content) => {
+    saveFile(name, content);
   });
   if (VITE_DEV_SERVER_URL) {
     noteWin.loadURL(VITE_DEV_SERVER_URL + "/note");
@@ -145,7 +151,10 @@ app.on("activate", () => {
     createNoteWindow();
   }
 });
-app.whenReady().then(createNoteWindow);
+app.whenReady().then(async () => {
+  createNoteWindow();
+  await createAppDataDir();
+});
 async function storagePosition() {
   const uiConfig = await readConfig("");
   if (!uiConfig || !win) return;
@@ -190,6 +199,54 @@ async function writeConfig(path2, config) {
   } catch (error) {
     console.error(error);
   }
+}
+function getInstallSiblingDir() {
+  try {
+    if (isDev) {
+      return path.resolve(__dirname$1, "../");
+    }
+    const exePath = app.getPath("exe");
+    const exeDir = path.dirname(exePath);
+    return exeDir;
+  } catch (error) {
+    console.error("解析安装目录失败：", error);
+    return app.getPath("documents");
+  }
+}
+async function isFolderExist(path2) {
+  try {
+    await fs.access(path2, 0);
+    const stats = await fs.stat(path2);
+    return stats.isDirectory();
+  } catch (error) {
+    return false;
+  }
+}
+async function createAppDataDir() {
+  const appDataDir = path.join(getInstallSiblingDir(), DATADIR);
+  const exist = await isFolderExist(appDataDir);
+  if (!exist) {
+    await fs.mkdir(appDataDir, { recursive: true });
+  }
+}
+function saveFile(name, files) {
+  return new Promise(async (resolve, reject) => {
+    if (files.length === 0) {
+      resolve(true);
+      return;
+    }
+    try {
+      for (const file of files) {
+        const savePath = path.join(getInstallSiblingDir(), DATADIR, name);
+        await fs.writeFile(savePath, file, { encoding: "utf8" });
+      }
+      resolve(true);
+    } catch (error) {
+      const errMsg = `保存文件失败：${error.message}`;
+      console.error(errMsg);
+      reject(new Error(errMsg));
+    }
+  });
 }
 if (process.platform === "win32") {
   app.commandLine.appendSwitch("high-dpi-support", "true");

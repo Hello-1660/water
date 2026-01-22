@@ -63,6 +63,7 @@ import Top from './components/Top.vue'
     width: 80px;
     height: 100%;
     background-color: #f3f4f6;
+    user-select: none;
 }
 
 .main>.option>.nav-link {
