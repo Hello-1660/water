@@ -111,7 +111,7 @@ const TabBackspaceSmart = Extension.create({
                 const { $from } = selection
                 const doc = state.doc
 
-                const isAtDocEnd = $from.pos >= doc.content.size - 2
+                const isAtDocEnd = $from.pos >= doc.content.size - 1
                 const lineStart = $from.start()
                 const lineText = state.doc.textBetween(lineStart, $from.pos)
 
@@ -123,7 +123,7 @@ const TabBackspaceSmart = Extension.create({
                 }
 
                 if (isAtDocEnd) {
-                    return this.editor.commands.insertContent('\n' + indent)
+                    return this.editor.commands.insertContent('\n')
                 } else {
                     return this.editor.chain()
                         .splitBlock()
@@ -208,6 +208,7 @@ const editor = useEditor({
 
 .basic-editor {
     height: 100%;
+    min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
     background-color: var(--editor-bg);
