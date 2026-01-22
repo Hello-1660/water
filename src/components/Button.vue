@@ -4,10 +4,18 @@ import { ref } from 'vue'
 const slider = ref<HTMLDivElement | undefined>()
 const data = ref<boolean>(false)
 
-const update = (): void => {
+const updateStatus = (): void => {
     if (!slider.value) return
     slider.value.style.maxWidth = data.value ? '30px' : '80px'
     data.value = !data.value
+
+    update()
+}
+
+
+const emit = defineEmits(['update'])
+const update = (): void => {
+    emit('update', data.value)
 }
 </script>
 
@@ -22,7 +30,7 @@ const update = (): void => {
             <slot name="label2">22</slot>
         </div>
 
-        <div @click="update" id="btn">
+        <div @click="updateStatus" id="btn">
             <div ref="slider" class="slider">
                 <div class="circle">
 
@@ -56,7 +64,6 @@ const update = (): void => {
     width: 70px;
     height: 30px;
     border-radius: 30px;
-    margin-right: 100px;
     user-select: none;
     overflow: hidden;
     border: 3px solid #727272;
