@@ -208,8 +208,7 @@ const editor = useEditor({
 .basic-editor {
     height: 100%;
     min-height: 0;
-    /* background-color: var(--editor-bg); */
-    background-color: black;
+    background-color: var(--editor-bg);
     overflow-x: hidden;
     overflow-y: auto;
 }
@@ -229,7 +228,6 @@ const editor = useEditor({
     caret-color: var(--editor-caret-color);
     color: var(--editor-color);
     font-size: var(--editor-font-size);
-    background-color: blue;
 }
 
 

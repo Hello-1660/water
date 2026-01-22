@@ -1,11 +1,34 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 
+const slider = ref<HTMLDivElement | undefined>()
+const data = ref<boolean>(false)
+
+const update = (): void => {
+    if (!slider.value) return
+    slider.value.style.maxWidth = data.value ? '30px' : '80px'
+    data.value = !data.value
+}
 </script>
 
 
 <template>
-    <div class="btn">
-    
+    <div class="button-main">
+        <div v-show="!data" class="label">
+            <slot name="label1">11</slot>
+        </div>
+
+        <div v-show="data" class="label">
+            <slot name="label2">22</slot>
+        </div>
+
+        <div @click="update" id="btn">
+            <div ref="slider" class="slider">
+                <div class="circle">
+
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -17,10 +40,51 @@
 }
 
 
-.btn {
-    width: 50px;
-    /* height: 40px; */
-    background-color: red;
+.button-main {
+    display: flex;
+    align-items: center;
+}
+
+.button-main>.label {
+    width: 40px;
+    height: 40px;
+    margin-right: 10px;
+}
+
+
+#btn {
+    width: 70px;
+    height: 30px;
+    border-radius: 30px;
     margin-right: 100px;
+    user-select: none;
+    overflow: hidden;
+    border: 3px solid #727272;
+    background-color: rgb(255, 255, 255);
+}
+
+.slider {
+    position: relative;
+    max-width: 30px;
+    height: 100%;
+    border-radius: 30px;
+    background-color: rgb(0, 106, 255);
+    transition: max-width 0.1s ease-in-out;
+}
+
+.slider>.circle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    box-sizing: border-box;
+    width: 30px;
+    height: 100%;
+    border-radius: 50%;
+    border: 3px solid #aaaaaa5e;
+    background-color: rgb(255, 255, 255);
+}
+
+.slider>.circle:hover {
+    border: 3px solid #aaaaaa;
 }
 </style>
