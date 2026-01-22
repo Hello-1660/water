@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import Top from '../components/Top.vue'
 import TextEditor from '../components/TextEditor.vue'
+import Button from '../components/Button.vue'
 import { ref } from 'vue'
 
 const theme = ref('light')
@@ -26,56 +26,42 @@ const handleData = (data: any) => {
 
 <template>
     <div class="sticky-note">
-        <div class="top">
-            <Top />
+        <div class="btn">
+            <Button>按钮</Button>
         </div>
-
-        <button @click="updateTheme">11111</button>
-
-        <div class="main">
-            <div class="option">
-
-            </div>
-
-            <div class="editor">
-                <TextEditor 
-                    :theme="theme" 
-                    @save="handleSave"
-                    @data="handleData" 
-                />
-            </div>
+        <div class="editor">
+            <TextEditor 
+                :theme="theme" 
+                @save="handleSave"
+                @data="handleData" 
+            />
         </div>
     </div>
 </template>
 
 <style scoped>
+
 .sticky-note {
     display: flex;
     flex-direction: column;
     justify-content: start;
+    min-height: 0;
     height: 100%;
     width: 100%;
 }
 
-.main {
-    flex: 1;
+.btn {
+    height: 10%;
     display: flex;
-    justify-content: start;
-    align-items: start;
-    min-height: 0;
-    height: 100%;
+    /* justify-content: flex-end; */
+    /* align-items: center; */
+    background-color: pink;
 }
 
-.main>.option {
-    flex: 0.2;
-    height: 100%;
-    min-height: 0;
-    background-color: yellow;
-}
 
-.main>.editor {
-    flex: 0.8;
+
+.editor {
+    height: 90%;
     min-height: 0;
-    height: 100%;
 }
 </style>

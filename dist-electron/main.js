@@ -142,9 +142,10 @@ app.on("window-all-closed", () => {
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
+    createNoteWindow();
   }
 });
-app.whenReady().then(createWindow);
+app.whenReady().then(createNoteWindow);
 async function storagePosition() {
   const uiConfig = await readConfig("");
   if (!uiConfig || !win) return;

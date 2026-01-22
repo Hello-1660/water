@@ -60,6 +60,7 @@ const restoreWindow = (): void => {
     background-color: rgb(235, 234, 234);
     user-select: none;
     -webkit-app-region: drag;   
+    min-height: 0;
 }
 
 

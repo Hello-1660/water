@@ -38,7 +38,6 @@ const theme = ref({
 
 
 const activeTheme = ref(props.theme)
-const editorInstance = ref<any>(null)
 
 
 watch(
@@ -209,9 +208,10 @@ const editor = useEditor({
 .basic-editor {
     height: 100%;
     min-height: 0;
+    /* background-color: var(--editor-bg); */
+    background-color: black;
     overflow-x: hidden;
     overflow-y: auto;
-    background-color: var(--editor-bg);
 }
 
 
@@ -219,7 +219,6 @@ const editor = useEditor({
 :global(.tiptap) {
     min-height: 100%;
     padding: 12px 14px;
-    box-sizing: border-box;
     outline: none;
     white-space: pre-wrap;
     word-break: break-word;
@@ -230,7 +229,9 @@ const editor = useEditor({
     caret-color: var(--editor-caret-color);
     color: var(--editor-color);
     font-size: var(--editor-font-size);
+    background-color: blue;
 }
+
 
 :global(.tiptap section) {
     background-color: inherit !important;
