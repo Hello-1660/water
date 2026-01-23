@@ -3,12 +3,26 @@ import TextEditor from '../components/TextEditor.vue'
 import Button from '../components/Button.vue'
 import { ref } from 'vue'
 
+const TEXT = 'txt'
+const HTML = 'html'
+const JSON = 'json'
+
 const theme = ref('light')
 const isShowAll = ref(false)
 
-
 const editor = ref<HTMLDivElement | undefined>()
 const func = ref<HTMLDivElement | undefined>()
+const currentFile = ref<any>({
+    name: '',
+    type: HTML,
+})
+
+
+const fileData = ref<any>({
+    type: 'text',
+    content: '你好'
+})
+
 const updateShowAll = () => {
     if (!func.value) return
     if (!editor.value) return
@@ -29,11 +43,25 @@ const updateTheme = (value: boolean) => {
 
 const handleSave = (save: any) => {
     if (save.msg === 'success') {
-        const msg = window.electronAPI.saveFile('测试.txt', [save.data.text])
-        console.log(msg)
+        fileData.value.content = save.data
     } 
 }
 
+
+const saveFile = (name: string, type: string) => { 
+    return window.electronAPI.saveFile(name, type, fileData.value.content)
+}
+
+
+const openFile = () => {
+    const name = currentFile.value.name + '.' + currentFile.value.type
+    window.electronAPI.openFile(name).then(
+        data => {
+           fileData.value.content = data
+           fileData.value.type = currentFile.value.type
+        }
+    )
+}
 
 
 </script>
@@ -111,6 +139,7 @@ const handleSave = (save: any) => {
         <div id="editor" ref="editor">
             <TextEditor 
             :theme="theme" 
+            :file-data="fileData"
             @save="handleSave" 
             />
         </div>

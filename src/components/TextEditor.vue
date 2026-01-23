@@ -14,6 +14,13 @@ const props = defineProps({
     theme: {
         type: String,
         default: 'light'
+    },
+    fileData: {
+        type: Object as () => {
+            content?: string,
+            type?: 'html' | 'text' | 'json'
+        },
+        default: () => ({ content: '', type: 'html' })
     }
 })
 
@@ -68,6 +75,16 @@ onMounted(() => {
 
 
 watch([theme, activeTheme], updateThemeCssVars, { deep: true })
+
+watch(
+    () => props.fileData,
+    (newFileData) => {
+        if (newFileData && newFileData.content) {
+            setEditorContent(newFileData)
+        }
+    },
+    { deep: true }
+)
 
 const TabBackspaceSmart = Extension.create({
     name: 'tabBackspaceSmart',
@@ -140,6 +157,30 @@ const TabBackspaceSmart = Extension.create({
     }
 })
 
+
+const setEditorContent = (fileData: { content?: string; type?: 'html' | 'text' | 'json' }) => {
+    if (!editor.value || !fileData?.content) return
+
+    const { content, type = 'html' } = fileData
+
+    try {
+        let finalContent = ''
+        if (type === 'json') {
+            const parsedJson = JSON.parse(content)
+            finalContent = JSON.stringify(parsedJson, null, 2)
+        } else {
+            finalContent = content
+        }
+
+        editor.value.commands.setContent(finalContent, {
+            parseOptions: { preserveWhitespace: 'full' },
+            emitUpdate: false
+        })
+    } catch (error) {
+        editor.value.commands.setContent('')
+    }
+}
+
 const getEditorContent = () => {
     if (!editor.value) return { html: '', text: '', json: '' }
     return {
@@ -185,6 +226,11 @@ const editor = useEditor({
             }
         }
     },
+    onCreate: () => {
+        if (props.fileData && props.fileData.content) {
+            setEditorContent(props.fileData)
+        }
+    }
 })
 
 

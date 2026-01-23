@@ -21,11 +21,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	// 读取配置文件
 	getConfig: (path: string): Promise<UIConfig> => ipcRenderer.invoke('config:get', path),
 	// 保存文件
-	saveFile: (name: string, content: string[]): Promise<boolean> => ipcRenderer.invoke('file:save', name, content),
+	saveFile: (name: string, type: string , content: string): Promise<boolean> => ipcRenderer.invoke('file:save', name, type, content),
 	// 获取单个文件
-	getFile: (name: string): Promise<string> => ipcRenderer.invoke('file:get', name),
+	openFile: (name: string): Promise<string> => ipcRenderer.invoke('file:open', name),
 	// 获取所有文件信息
-	getFiles: (): Promise<string[]> => ipcRenderer.invoke('file:get-files'),
+	openAllFiles: (): Promise<string[]> => ipcRenderer.invoke('file:open-all'),
 	// 删除文件
 	deleteFile: (name: string): Promise<boolean> => ipcRenderer.invoke('file:delete', name),
 })
@@ -42,9 +42,9 @@ declare global {
 			minNoteWindow: () => Promise<void>
 			restoreNoteWindow: () => Promise<void>
 			getConfig: (path: string) => Promise<UIConfig>
-			saveFile: (name: string, content: string[]) => Promise<boolean>
-			getFile: (name: string) => Promise<string>
-			getFiles: () => Promise<string[]>
+			saveFile: (name: string, type: string, content: string) => Promise<boolean>
+			openFile: (name: string) => Promise<string>
+			openAllFiles: () => Promise<string[]>
 			deleteFile: (name: string) => Promise<boolean>
 		}
 	}

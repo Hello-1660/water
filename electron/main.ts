@@ -5,7 +5,6 @@ import path from 'node:path'
 import fs from 'node:fs/promises'
 
 
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATADIR = 'data'
 
@@ -144,6 +143,7 @@ async function createNoteWindow() {
 	ipcMain.removeHandler('window:min-note-window')
 	ipcMain.removeHandler('window:restore-note-window')
 	ipcMain.removeHandler('file:save')
+	ipcMain.removeHandler('file:open')
 
 
 
@@ -172,8 +172,12 @@ async function createNoteWindow() {
 		noteWin.restore()
 	})
 
-	ipcMain.handle('file:save', (_, name: string, content: string[]) => {
-		saveFile(name, content)
+	ipcMain.handle('file:save', (_, name: string, type: string, content: string) => {
+		saveFile(name, type, content)
+	})
+
+	ipcMain.handle('file:open', async (_, name: string) => {
+		return await getFile(name)
 	})
 
 
@@ -327,26 +331,33 @@ async function createAppDataDir() {
 
 
 // 保存文件
-function saveFile(name: string, files: string[]): Promise<boolean> {
+function saveFile(name: string, type: string, file: string): Promise<boolean> {
 	return new Promise(async (resolve, reject) => {
-		if (files.length === 0) {
-			resolve(true)
-			return
-		}
-
 		try {
-			for (const file of files) {
-				const savePath = path.join(getInstallSiblingDir(), DATADIR, name)
-				await fs.writeFile(savePath, file, { encoding: 'utf8' })
-			}
+			const savePath = path.join(getInstallSiblingDir(), DATADIR, name + '.' + type)
+			await fs.writeFile(savePath, file, { encoding: 'utf8' })
+			
 			resolve(true);
 		} catch (error) {
 			const errMsg = `保存文件失败：${(error as Error).message}`
-			console.error(errMsg)
 			reject(new Error(errMsg))
 		}
 	});
 } 
+
+
+// 获取文件
+function getFile(name: string): Promise<string> {
+	return new Promise(async (resolve, reject) => {
+		try {
+			const filePath = path.join(getInstallSiblingDir(), DATADIR, name)
+			const data = await fs.readFile(filePath, 'utf-8')
+			resolve(data)
+		} catch (error) {
+			reject('')
+		}
+	})
+}
 
 
 // 防止界面拖拽卡顿

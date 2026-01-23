@@ -109,6 +109,7 @@ async function createNoteWindow() {
   ipcMain.removeHandler("window:min-note-window");
   ipcMain.removeHandler("window:restore-note-window");
   ipcMain.removeHandler("file:save");
+  ipcMain.removeHandler("file:open");
   ipcMain.handle("window:close-note-window", () => {
     if (!noteWin) return;
     noteWin.close();
@@ -126,8 +127,11 @@ async function createNoteWindow() {
     if (!noteWin) return;
     noteWin.restore();
   });
-  ipcMain.handle("file:save", (_, name, content) => {
-    saveFile(name, content);
+  ipcMain.handle("file:save", (_, name, type, content) => {
+    saveFile(name, type, content);
+  });
+  ipcMain.handle("file:open", async (_, name) => {
+    return await getFile(name);
   });
   if (VITE_DEV_SERVER_URL) {
     noteWin.loadURL(VITE_DEV_SERVER_URL + "/note");
@@ -229,22 +233,26 @@ async function createAppDataDir() {
     await fs.mkdir(appDataDir, { recursive: true });
   }
 }
-function saveFile(name, files) {
+function saveFile(name, type, file) {
   return new Promise(async (resolve, reject) => {
-    if (files.length === 0) {
-      resolve(true);
-      return;
-    }
     try {
-      for (const file of files) {
-        const savePath = path.join(getInstallSiblingDir(), DATADIR, name);
-        await fs.writeFile(savePath, file, { encoding: "utf8" });
-      }
+      const savePath = path.join(getInstallSiblingDir(), DATADIR, name + "." + type);
+      await fs.writeFile(savePath, file, { encoding: "utf8" });
       resolve(true);
     } catch (error) {
       const errMsg = `保存文件失败：${error.message}`;
-      console.error(errMsg);
       reject(new Error(errMsg));
+    }
+  });
+}
+function getFile(name) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const filePath = path.join(getInstallSiblingDir(), DATADIR, name);
+      const data = await fs.readFile(filePath, "utf-8");
+      resolve(data);
+    } catch (error) {
+      reject("");
     }
   });
 }

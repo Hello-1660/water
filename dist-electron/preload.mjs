@@ -18,11 +18,11 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
   // 读取配置文件
   getConfig: (path) => electron.ipcRenderer.invoke("config:get", path),
   // 保存文件
-  saveFile: (name, content) => electron.ipcRenderer.invoke("file:save", name, content),
+  saveFile: (name, type, content) => electron.ipcRenderer.invoke("file:save", name, type, content),
   // 获取单个文件
-  getFile: (name) => electron.ipcRenderer.invoke("file:get", name),
+  openFile: (name) => electron.ipcRenderer.invoke("file:open", name),
   // 获取所有文件信息
-  getFiles: () => electron.ipcRenderer.invoke("file:get-files"),
+  openAllFiles: () => electron.ipcRenderer.invoke("file:open-all"),
   // 删除文件
   deleteFile: (name) => electron.ipcRenderer.invoke("file:delete", name)
 });
