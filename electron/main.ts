@@ -147,6 +147,7 @@ async function createNoteWindow() {
 
 
 
+
 	ipcMain.handle('window:close-note-window', () => {
 		if (!noteWin) return
 
@@ -178,6 +179,10 @@ async function createNoteWindow() {
 
 	ipcMain.handle('file:open', async (_, name: string) => {
 		return await getFile(name)
+	})
+
+	ipcMain.handle('file:open-all', async () => {
+		return await getAllFileList()
 	})
 
 
@@ -355,6 +360,40 @@ function getFile(name: string): Promise<string> {
 			resolve(data)
 		} catch (error) {
 			reject('')
+		}
+	})
+}
+
+interface FileType {
+	name: string,
+	type: string,
+}
+
+// 获取所有文件
+function getAllFileList(): Promise<FileType[]> {
+	return new Promise(async (resolve, reject) => {
+		try {
+			const filePath = path.join(getInstallSiblingDir(), DATADIR)
+			const dirents = await fs.readdir(filePath, { withFileTypes: true })
+			
+			const fileList: FileType[] = await Promise.all(
+				dirents
+					.filter(dirent => dirent.isFile()) 
+					.map(async (dirent) => {
+						const data = dirent.name.split('.')
+						const name = data[0]
+						const type = data[1]
+
+						return {
+							name: name,
+							type: type
+						}
+					})
+			)
+
+			resolve(fileList)
+		} catch (error) {
+			reject([])
 		}
 	})
 }

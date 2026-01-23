@@ -25,7 +25,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	// 获取单个文件
 	openFile: (name: string): Promise<string> => ipcRenderer.invoke('file:open', name),
 	// 获取所有文件信息
-	openAllFiles: (): Promise<string[]> => ipcRenderer.invoke('file:open-all'),
+	openAllFiles: (): Promise<{name: string, type: string}[]> => ipcRenderer.invoke('file:open-all'),
 	// 删除文件
 	deleteFile: (name: string): Promise<boolean> => ipcRenderer.invoke('file:delete', name),
 })
@@ -44,7 +44,7 @@ declare global {
 			getConfig: (path: string) => Promise<UIConfig>
 			saveFile: (name: string, type: string, content: string) => Promise<boolean>
 			openFile: (name: string) => Promise<string>
-			openAllFiles: () => Promise<string[]>
+			openAllFiles: () => Promise<{name: string, type: string}[]>
 			deleteFile: (name: string) => Promise<boolean>
 		}
 	}

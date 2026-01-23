@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import TextEditor from '../components/TextEditor.vue'
 import Button from '../components/Button.vue'
-import { ref } from 'vue'
+import Popup from '../components/Popup.vue'
+import Select from '../components/Select.vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 const TEXT = 'txt'
 const HTML = 'html'
 const JSON = 'json'
+const SELECTWIDTHSIZE = 0.25
 
 const theme = ref('light')
 const isShowAll = ref(false)
@@ -20,8 +23,11 @@ const currentFile = ref<any>({
 
 const fileData = ref<any>({
     type: 'text',
-    content: '你好'
+    content: ''
 })
+
+
+
 
 const updateShowAll = () => {
     if (!func.value) return
@@ -44,11 +50,11 @@ const updateTheme = (value: boolean) => {
 const handleSave = (save: any) => {
     if (save.msg === 'success') {
         fileData.value.content = save.data
-    } 
+    }
 }
 
 
-const saveFile = (name: string, type: string) => { 
+const saveFile = (name: string, type: string) => {
     return window.electronAPI.saveFile(name, type, fileData.value.content)
 }
 
@@ -57,11 +63,49 @@ const openFile = () => {
     const name = currentFile.value.name + '.' + currentFile.value.type
     window.electronAPI.openFile(name).then(
         data => {
-           fileData.value.content = data
-           fileData.value.type = currentFile.value.type
+            fileData.value.content = data
+            fileData.value.type = currentFile.value.type
         }
     )
 }
+
+
+const selectWith = ref('350px')
+
+const handleWidthChange = () => {
+    if (func.value) {
+        const newWidth = func.value.style.width || getComputedStyle(func.value).width
+        selectWith.value = parseInt(newWidth, 10) * SELECTWIDTHSIZE + 'px'
+    }
+}
+
+let resizeObserver: ResizeObserver | null = null
+onMounted(() => {
+    if (func.value) {
+        resizeObserver = new ResizeObserver(handleWidthChange)
+        resizeObserver.observe(func.value)
+
+        handleWidthChange()
+    }
+})
+
+interface SelectValue {
+    name: string,
+    type: string
+}
+const selectValues = ref<SelectValue[]>()
+onMounted(() => {
+    window.electronAPI.openAllFiles().then(
+        data => selectValues.value = data
+    )
+})
+
+onUnmounted(() => {
+    if (resizeObserver) {
+        resizeObserver.disconnect()
+        resizeObserver = null
+    }
+})
 
 
 </script>
@@ -71,6 +115,13 @@ const openFile = () => {
     <div class="sticky-note">
         <div class="func" ref="func">
             <div v-if="!isShowAll" class="func-main">
+                <div class="search">
+                    <Select 
+                    :width="selectWith" 
+                    :select-values="selectValues"
+                    @data="currentFile" />
+                </div>
+
                 <div class="btn">
                     <Button @update="updateTheme">
                         <template #label1>
@@ -123,10 +174,10 @@ const openFile = () => {
 
             <div class="editor-size">
                 <svg v-show="isShowAll" @click="updateShowAll" t="1769084031871" class="icon" viewBox="0 0 1024 1024"
-                    version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="21987">
-                    <path
-                        d="M159.417291 157.449985l352.753089 343.768461 357.257683-345.263511 41.97602 1.49505-399.233704 422.216137-399.221424-422.216137L159.417291 157.449985zM159.417291 438.754812l352.753089 343.769484L869.428064 437.763229l41.97602 0.991584-399.233704 422.717557-399.221424-422.717557L159.417291 438.754812z"
-                        p-id="21988"></path>
+                version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="21987">
+                <path
+                    d="M159.417291 157.449985l352.753089 343.768461 357.257683-345.263511 41.97602 1.49505-399.233704 422.216137-399.221424-422.216137L159.417291 157.449985zM159.417291 438.754812l352.753089 343.769484L869.428064 437.763229l41.97602 0.991584-399.233704 422.717557-399.221424-422.717557L159.417291 438.754812z"
+                    p-id="21988"></path>
                 </svg>
                 <svg v-show="!isShowAll" @click="updateShowAll" t="1769084825450" class="icon" viewBox="0 0 1024 1024"
                     version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="22961">
@@ -136,12 +187,8 @@ const openFile = () => {
                 </svg>
             </div>
         </div>
-        <div id="editor" ref="editor">
-            <TextEditor 
-            :theme="theme" 
-            :file-data="fileData"
-            @save="handleSave" 
-            />
+        <div id="editor" class="aaa" ref="editor">
+            <TextEditor :theme="theme" :file-data="fileData" @save="handleSave" />
         </div>
     </div>
 </template>
@@ -176,6 +223,7 @@ const openFile = () => {
 }
 
 .func>.func-main {
+    position: relative;
     display: flex;
     justify-content: flex-end;
     align-items: center;
@@ -183,27 +231,36 @@ const openFile = () => {
     height: 100%;
 }
 
+.func>.func-main>.search {
+    position: absolute;
+    left: 30px;
+}
+
+
 .func>.func-main>.btn {
     margin-right: 50px;
 }
 
 .func>.editor-size {
     position: absolute;
+    left: 50%;
     bottom: 0px;
-    width: 100%;
+    transform: translateX(-50%);
+    width: 40%;
     height: 30px;
+    cursor: pointer;
 }
 
 .func>.editor-size>.icon {
-    display: none;
+    visibility: hidden;
     width: 100%;
     height: 100%;
     fill: rgb(187, 187, 187);
     transform: scaleX(3);
 }
 
-.func:hover>.editor-size>.icon {
-    display: block;
+.func>.editor-size:hover .icon {
+    visibility: visible;
 }
 
 

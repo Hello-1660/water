@@ -66,7 +66,7 @@ const update = (): void => {
     border-radius: 30px;
     user-select: none;
     overflow: hidden;
-    border: 3px solid #727272;
+    box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.5);
     background-color: rgb(255, 255, 255);
 }
 

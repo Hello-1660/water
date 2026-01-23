@@ -133,6 +133,9 @@ async function createNoteWindow() {
   ipcMain.handle("file:open", async (_, name) => {
     return await getFile(name);
   });
+  ipcMain.handle("file:open-all", async () => {
+    return await getAllFileList();
+  });
   if (VITE_DEV_SERVER_URL) {
     noteWin.loadURL(VITE_DEV_SERVER_URL + "/note");
   } else {
@@ -253,6 +256,28 @@ function getFile(name) {
       resolve(data);
     } catch (error) {
       reject("");
+    }
+  });
+}
+function getAllFileList() {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const filePath = path.join(getInstallSiblingDir(), DATADIR);
+      const dirents = await fs.readdir(filePath, { withFileTypes: true });
+      const fileList = await Promise.all(
+        dirents.filter((dirent) => dirent.isFile()).map(async (dirent) => {
+          const data = dirent.name.split(".");
+          const name = data[0];
+          const type = data[1];
+          return {
+            name,
+            type
+          };
+        })
+      );
+      resolve(fileList);
+    } catch (error) {
+      reject([]);
     }
   });
 }
