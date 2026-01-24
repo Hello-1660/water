@@ -4,9 +4,9 @@ import {
     watch,
     onMounted,
     nextTick,
-    onBeforeUnmount,
-    computed
+    onBeforeUnmount
 } from 'vue'
+import { f } from 'vue-router/dist/router-CWoNjPRp.mjs'
 
 
 interface SelectValue {
@@ -112,6 +112,7 @@ onMounted(async () => {
 
     window.addEventListener('resize', updatePosition)
     window.addEventListener('scroll', updatePosition, true)
+    window.addEventListener('click', close)
 
     if (anchorRef.value) {
         resizeObserver = new ResizeObserver(updatePosition)
@@ -133,6 +134,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
     window.removeEventListener('resize', updatePosition)
     window.removeEventListener('scroll', updatePosition, true)
+    window.removeEventListener('click', close)
 
     resizeObserver?.disconnect()
 
@@ -143,13 +145,20 @@ onBeforeUnmount(() => {
 })
 
 
-const isShowVar = ref(false)
-const isShow = computed(() => isShowVar.value === true ? 'up' : '')
+const isShow = ref(false)
 const findValue = ref<string>()
 
 const handleLiClick = (value: SelectValue) => { 
     emit('data', value)
     findValue.value = value.name
+    isShow.value = false
+}
+
+const close = (e: MouseEvent) => {
+    if (!floatingRef.value) return
+
+    const isClickInside = floatingRef.value.contains(e.target as Node)
+    if (!isClickInside)  isShow.value = false
 }
 
 </script>
@@ -162,9 +171,9 @@ const handleLiClick = (value: SelectValue) => {
     <Teleport to="body">
         <div ref="floatingRef" class="select-container">
             <div ref="selectMain" class="select-main">
-                <input @focus="isShowVar = true" @blur="isShowVar = false" v-model="findValue" class="select-input" type="text"placeholder="请选择" />
+                <input v-model="findValue" class="select-input" @focus="isShow = true" type="text"placeholder="请选择" />
 
-                <div class="select-list" :id="isShow">
+                <div class="select-list" :id="isShow ? 'up' : ''">
                     <ul class="list">
                         <li v-for="(value, index) in selectList" :key="index"  @click="handleLiClick(value)">{{ value.name }}</li>
                     </ul>

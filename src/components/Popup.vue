@@ -10,6 +10,7 @@ interface Props {
 	showCloseButton?: boolean
 	showBody?: boolean
 	closeOnClickOverlay?: boolean
+	isModal?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -19,7 +20,8 @@ const props = withDefaults(defineProps<Props>(), {
 	height: 300,
 	showCloseButton: true,
 	showBody: true,
-	closeOnClickOverlay: true
+	closeOnClickOverlay: true,
+	isModal: true
 })
 
 const emit = defineEmits<{
@@ -39,7 +41,13 @@ const popupStyle = computed(() => ({
 // 打开弹窗
 const open = () => {
 	if (dialogRef.value) {
-		dialogRef.value.showModal()
+		if (props.isModal) {
+			dialogRef.value.showModal()
+		} else {
+			console.log('非模态弹窗')
+			dialogRef.value.show()
+		}
+
 		emit('update:modelValue', true)
 		emit('open')
 	}
@@ -66,6 +74,8 @@ const sure = () => {
 
 // 点击遮罩层关闭
 const handleOverlayClick = (event: MouseEvent) => {
+	if (!props.isModal) return 
+
 	if (props.closeOnClickOverlay && event.target === dialogRef.value) {
 		close()
 	}
