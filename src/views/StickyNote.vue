@@ -3,12 +3,14 @@ import TextEditor from '../components/TextEditor.vue'
 import Button from '../components/Button.vue'
 import Popup from '../components/Popup.vue'
 import Select from '../components/Select.vue'
-import { ref, computed ,onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { p } from 'vue-router/dist/router-CWoNjPRp.mjs'
 
 const TEXT = 'txt'
 const HTML = 'html'
 const JSON = 'json'
 const SELECTWIDTHSIZE = 0.25
+const DELETE = 'delete'
 
 const theme = ref('light')
 const initTheme = computed(() => theme.value !== 'light')
@@ -99,7 +101,7 @@ const handleCurrentFile = (data: SelectValue) => {
     openFile(currentFile.value.name, currentFile.value.type, (data: string) => {
         fileData.value.type = currentFile.value.type
         fileData.value.content = data
-    })    
+    })
 }
 
 let resizeObserver: ResizeObserver | null = null
@@ -118,17 +120,19 @@ interface SelectValue {
 }
 
 
-const addFile = () => { 
+const addFile = () => {
     currentFile.value.name = ''
     fileData.value.content = ''
 }
 
 const deleteFileEvent = () => {
-    // deleteFile(currentFile.value.name, currentFile.value.type, (data: boolean) => {
-    //     console.log(data)
-    //     openAllFiles()
-    //     addFile()
-    // })
+    popupSure.value = '确认'
+    popupClose.value ='取消'
+    popupTitle.value ='永久删除文件'
+    popupBody.value = '删除后，该文件将不可恢复。确认删除吗？'
+
+    currentOption.value = DELETE
+    isShowPopup.value = true
 }
 
 
@@ -145,34 +149,82 @@ onUnmounted(() => {
 })
 
 
+
+
+const currentOption = ref('')
+
+
+const isShowPopup = ref(false)
+const popupSure = ref('')
+const popupClose = ref('')    
+const popupTitle = ref('')
+const popupBody = ref('')
+
+const handlePopupSure = () => {
+    if (currentOption.value === DELETE) {
+        deleteFile(currentFile.value.name, currentFile.value.type, (data: boolean) => {
+            console.log(data)
+            openAllFiles()
+            addFile()
+        })
+    }
+}
+
 </script>
 
 
 <template>
     <div class="sticky-note">
+        <Popup ref="popupRef" v-model="isShowPopup" 
+        :title="popupTitle"
+        width="500px" 
+        height="210px"
+        @sure="handlePopupSure"
+        >
+        <h3>{{ popupBody }}</h3>
+        <template #sure-text>
+            {{ popupSure }}
+        </template>
+        <template #close-text>
+            {{ popupClose }}
+        </template>
+        </Popup>
+
         <div class="func" ref="func">
             <div v-if="!isShowAll" class="func-main">
                 <div class="search">
-                    <Select 
-                    :width="selectWith" 
-                    :select-values="selectValues"
-                    @data="handleCurrentFile"
-                    :initSelectValue="initSelectValue"
-                    />
+                    <Select :width="selectWith" :select-values="selectValues" @data="handleCurrentFile"
+                        :initSelectValue="initSelectValue" />
                 </div>
 
                 <div class="delete option" v-show="currentFile.name !== ''" @click="deleteFileEvent">
-                    <svg t="1769254219486" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="10396"><path d="M781.28 851.36a58.56 58.56 0 0 1-58.56 58.56H301.28a58.72 58.72 0 0 1-58.56-58.56V230.4h538.56z m-421.6-725.92a11.84 11.84 0 0 1 12-12h281.28a11.84 11.84 0 0 1 12 12V160H359.68zM956.8 160H734.72v-34.56a81.76 81.76 0 0 0-81.76-81.76H371.68a82.08 82.08 0 0 0-81.76 81.76V160H67.2a35.36 35.36 0 0 0 0 70.56h105.12v620.8a128.96 128.96 0 0 0 128.96 128.96h421.44a128.96 128.96 0 0 0 128.96-128.96V230.4H956.8a35.2 35.2 0 0 0 35.2-35.2 34.56 34.56 0 0 0-35.2-35.2zM512 804.16a35.2 35.2 0 0 0 35.2-35.36V393.92a35.2 35.2 0 1 0-70.4 0V768.8a35.2 35.2 0 0 0 35.2 35.36m-164.32 0a35.36 35.36 0 0 0 35.36-35.36V393.92a35.36 35.36 0 1 0-70.56 0V768.8a36.32 36.32 0 0 0 35.2 35.36m328.64 0a35.36 35.36 0 0 0 35.2-35.36V393.92a35.36 35.36 0 1 0-70.56 0V768.8a35.36 35.36 0 0 0 35.36 35.36" p-id="10397"></path></svg>
+                    <svg t="1769254219486" class="icon" viewBox="0 0 1024 1024" version="1.1"
+                        xmlns="http://www.w3.org/2000/svg" p-id="10396">
+                        <path
+                            d="M781.28 851.36a58.56 58.56 0 0 1-58.56 58.56H301.28a58.72 58.72 0 0 1-58.56-58.56V230.4h538.56z m-421.6-725.92a11.84 11.84 0 0 1 12-12h281.28a11.84 11.84 0 0 1 12 12V160H359.68zM956.8 160H734.72v-34.56a81.76 81.76 0 0 0-81.76-81.76H371.68a82.08 82.08 0 0 0-81.76 81.76V160H67.2a35.36 35.36 0 0 0 0 70.56h105.12v620.8a128.96 128.96 0 0 0 128.96 128.96h421.44a128.96 128.96 0 0 0 128.96-128.96V230.4H956.8a35.2 35.2 0 0 0 35.2-35.2 34.56 34.56 0 0 0-35.2-35.2zM512 804.16a35.2 35.2 0 0 0 35.2-35.36V393.92a35.2 35.2 0 1 0-70.4 0V768.8a35.2 35.2 0 0 0 35.2 35.36m-164.32 0a35.36 35.36 0 0 0 35.36-35.36V393.92a35.36 35.36 0 1 0-70.56 0V768.8a36.32 36.32 0 0 0 35.2 35.36m328.64 0a35.36 35.36 0 0 0 35.2-35.36V393.92a35.36 35.36 0 1 0-70.56 0V768.8a35.36 35.36 0 0 0 35.36 35.36"
+                            p-id="10397"></path>
+                    </svg>
                 </div>
 
                 <div class="add option" @click="addFile">
-                    <svg t="1769252361102" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="9390"><path d="M594.04 959.5H142.31c-41.14 0-74.6-33.46-74.6-74.6V367.47c0-21.18 17.17-38.36 38.36-38.36s38.36 17.17 38.36 38.36v515.32h449.62c21.18 0 38.36 17.17 38.36 38.36-0.01 21.18-17.18 38.35-38.37 38.35zM783.71 569.26c-21.18 0-38.36-17.17-38.36-38.36V141.21H365.4c-21.18 0-38.36-17.17-38.36-38.36S344.22 64.5 365.4 64.5h382.07c41.14 0 74.6 33.46 74.6 74.6v391.8c0 21.19-17.18 38.36-38.36 38.36z m-36.24-428.05h0.12-0.12z" p-id="9391"></path><path d="M360.67 438.06H130.53c-21.18 0-38.36-17.17-38.36-38.36s17.17-38.36 38.36-38.36h230.14c21.18 0 38.36 17.17 38.36 38.36s-17.18 38.36-38.36 38.36zM917.93 824.76h-268.5c-21.18 0-38.36-17.17-38.36-38.36 0-21.18 17.17-38.36 38.36-38.36h268.5c21.18 0 38.36 17.17 38.36 38.36 0 21.19-17.18 38.36-38.36 38.36z" p-id="9392"></path><path d="M783.68 959.01c-21.18 0-38.36-17.17-38.36-38.36v-268.5c0-21.18 17.17-38.36 38.36-38.36 21.18 0 38.36 17.17 38.36 38.36v268.5c0 21.19-17.18 38.36-38.36 38.36zM364.04 437.23c-21.18 0-38.36-17.17-38.36-38.36V110.64c0-21.18 17.17-38.36 38.36-38.36 21.18 0 38.36 17.17 38.36 38.36v288.23c0 21.19-17.17 38.36-38.36 38.36z" p-id="9393"></path><path d="M106.24 398.98c-9.85 0-19.7-3.77-27.19-11.31-14.94-15.02-14.88-39.31 0.14-54.25L338.35 75.66c15.02-14.93 39.3-14.88 54.25 0.14 14.94 15.02 14.88 39.31-0.14 54.25L133.3 387.81c-7.49 7.45-17.27 11.17-27.06 11.17z" p-id="9394"></path></svg>    
+                    <svg t="1769252361102" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
+                        p-id="9390">
+                        <path
+                            d="M594.04 959.5H142.31c-41.14 0-74.6-33.46-74.6-74.6V367.47c0-21.18 17.17-38.36 38.36-38.36s38.36 17.17 38.36 38.36v515.32h449.62c21.18 0 38.36 17.17 38.36 38.36-0.01 21.18-17.18 38.35-38.37 38.35zM783.71 569.26c-21.18 0-38.36-17.17-38.36-38.36V141.21H365.4c-21.18 0-38.36-17.17-38.36-38.36S344.22 64.5 365.4 64.5h382.07c41.14 0 74.6 33.46 74.6 74.6v391.8c0 21.19-17.18 38.36-38.36 38.36z m-36.24-428.05h0.12-0.12z"
+                            p-id="9391"></path>
+                        <path
+                            d="M360.67 438.06H130.53c-21.18 0-38.36-17.17-38.36-38.36s17.17-38.36 38.36-38.36h230.14c21.18 0 38.36 17.17 38.36 38.36s-17.18 38.36-38.36 38.36zM917.93 824.76h-268.5c-21.18 0-38.36-17.17-38.36-38.36 0-21.18 17.17-38.36 38.36-38.36h268.5c21.18 0 38.36 17.17 38.36 38.36 0 21.19-17.18 38.36-38.36 38.36z"
+                            p-id="9392"></path>
+                        <path
+                            d="M783.68 959.01c-21.18 0-38.36-17.17-38.36-38.36v-268.5c0-21.18 17.17-38.36 38.36-38.36 21.18 0 38.36 17.17 38.36 38.36v268.5c0 21.19-17.18 38.36-38.36 38.36zM364.04 437.23c-21.18 0-38.36-17.17-38.36-38.36V110.64c0-21.18 17.17-38.36 38.36-38.36 21.18 0 38.36 17.17 38.36 38.36v288.23c0 21.19-17.17 38.36-38.36 38.36z"
+                            p-id="9393"></path>
+                        <path
+                            d="M106.24 398.98c-9.85 0-19.7-3.77-27.19-11.31-14.94-15.02-14.88-39.31 0.14-54.25L338.35 75.66c15.02-14.93 39.3-14.88 54.25 0.14 14.94 15.02 14.88 39.31-0.14 54.25L133.3 387.81c-7.49 7.45-17.27 11.17-27.06 11.17z"
+                            p-id="9394"></path>
+                    </svg>
                 </div>
                 <div class="btn">
-                    <Button 
-                    @update="updateTheme"
-                    :theme="initTheme"
-                    >
+                    <Button @update="updateTheme" :theme="initTheme">
                         <template #label1>
                             <svg name="label1" t="1769078205047" viewBox="0 0 1024 1024" version="1.1"
                                 xmlns="http://www.w3.org/2000/svg" p-id="14801" width="100%" height="100%"
@@ -223,10 +275,10 @@ onUnmounted(() => {
 
             <div class="editor-size">
                 <svg v-show="isShowAll" @click="updateShowAll" t="1769084031871" class="icon" viewBox="0 0 1024 1024"
-                version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="21987">
-                <path
-                    d="M159.417291 157.449985l352.753089 343.768461 357.257683-345.263511 41.97602 1.49505-399.233704 422.216137-399.221424-422.216137L159.417291 157.449985zM159.417291 438.754812l352.753089 343.769484L869.428064 437.763229l41.97602 0.991584-399.233704 422.717557-399.221424-422.717557L159.417291 438.754812z"
-                    p-id="21988"></path>
+                    version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="21987">
+                    <path
+                        d="M159.417291 157.449985l352.753089 343.768461 357.257683-345.263511 41.97602 1.49505-399.233704 422.216137-399.221424-422.216137L159.417291 157.449985zM159.417291 438.754812l352.753089 343.769484L869.428064 437.763229l41.97602 0.991584-399.233704 422.717557-399.221424-422.717557L159.417291 438.754812z"
+                        p-id="21988"></path>
                 </svg>
                 <svg v-show="!isShowAll" @click="updateShowAll" t="1769084825450" class="icon" viewBox="0 0 1024 1024"
                     version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="22961">
@@ -237,10 +289,7 @@ onUnmounted(() => {
             </div>
         </div>
         <div id="editor" class="aaa" ref="editor">
-            <TextEditor 
-            :theme="theme" 
-            :file-data="fileData" 
-            @save="handleSave" />
+            <TextEditor :theme="theme" :file-data="fileData" @save="handleSave" />
         </div>
     </div>
 </template>
@@ -294,13 +343,13 @@ onUnmounted(() => {
     cursor: pointer;
 }
 
-.func>.func-main .option>svg { 
+.func>.func-main .option>svg {
     width: 40px;
     height: 40px;
     fill: #cccccc;
 }
 
-.func>.func-main> .option>svg:hover { 
+.func>.func-main>.option>svg:hover {
     fill: #757575;
 }
 
