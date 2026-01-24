@@ -79,7 +79,7 @@ watch([theme, activeTheme], updateThemeCssVars, { deep: true })
 watch(
     () => props.fileData,
     (newFileData) => {
-        if (newFileData && newFileData.content) {
+        if (newFileData) {
             setEditorContent(newFileData)
         }
     },
@@ -159,8 +159,11 @@ const TabBackspaceSmart = Extension.create({
 
 
 const setEditorContent = (fileData: { content?: string; type?: 'html' | 'text' | 'json' }) => {
-    if (!editor.value || !fileData?.content) return
+    if (editor.value && fileData.content === '') {
+        editor.value.commands.setContent('')
+    }
 
+    if (!editor.value || !fileData?.content) return
     const { content, type = 'html' } = fileData
 
     try {

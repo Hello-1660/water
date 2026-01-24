@@ -136,6 +136,9 @@ async function createNoteWindow() {
   ipcMain.handle("file:open-all", async () => {
     return await getAllFileList();
   });
+  ipcMain.handle("file:delete", async (_, name) => {
+    return await deleteFile(name);
+  });
   if (VITE_DEV_SERVER_URL) {
     noteWin.loadURL(VITE_DEV_SERVER_URL + "/note");
   } else {
@@ -278,6 +281,17 @@ function getAllFileList() {
       resolve(fileList);
     } catch (error) {
       reject([]);
+    }
+  });
+}
+function deleteFile(name) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const filePath = path.join(getInstallSiblingDir(), DATADIR, name);
+      await fs.unlink(filePath);
+      resolve(true);
+    } catch (error) {
+      reject(false);
     }
   });
 }

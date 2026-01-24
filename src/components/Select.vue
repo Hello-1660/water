@@ -27,8 +27,14 @@ const props = defineProps({
     height: {
         type: String,
         default: '45px'
+    },
+    initSelectValue: {
+        type: String,
+        default: ''
     }
 })
+
+
 
 
 const selectList = ref(props.selectValues)
@@ -116,6 +122,12 @@ onMounted(async () => {
         transitionTarget?.addEventListener('transitionstart', startFollow)
         transitionTarget?.addEventListener('transitionend', stopFollow)
     }
+
+    watch(
+        () => props.initSelectValue,
+        val => (findValue.value = val),
+        { immediate: true }
+    )
 })
 
 onBeforeUnmount(() => {
@@ -197,18 +209,15 @@ const handleLiClick = (value: SelectValue) => {
 .select-list {
     width: 100%;
     list-style: none;
-    overflow-y: auto;
     max-height: 0;
     transition: max-height 0.3s;
 }
 
 #up {
+    overflow-y: auto;
     max-height: 500px;
 }
 
-.down {
-    max-height: 0;
-}
 
 .select-list>.list {
     overflow-y: auto;

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { UIConfig } from '../src/config/Config'
 import path from 'node:path'
 import fs from 'node:fs/promises'
+import { promises } from 'node:dns'
 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -183,6 +184,10 @@ async function createNoteWindow() {
 
 	ipcMain.handle('file:open-all', async () => {
 		return await getAllFileList()
+	})
+
+	ipcMain.handle('file:delete', async (_, name: string) => {
+		return await deleteFile(name)
 	})
 
 
@@ -397,6 +402,20 @@ function getAllFileList(): Promise<FileType[]> {
 		}
 	})
 }
+
+
+
+function deleteFile(name: string): Promise<boolean> {
+	return new Promise(async (resolve, reject) => {
+		try {
+			const filePath = path.join(getInstallSiblingDir(), DATADIR, name)
+			await fs.unlink(filePath)
+			resolve(true)
+		} catch (error) {
+			reject(false)
+		}
+	})
+} 
 
 
 // 防止界面拖拽卡顿

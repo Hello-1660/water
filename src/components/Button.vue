@@ -1,8 +1,16 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 
 const slider = ref<HTMLDivElement | undefined>()
 const data = ref<boolean>(false)
+
+const prop = defineProps({
+    theme: {
+        type: Boolean,
+        default: false
+    }
+})
+
 
 const updateStatus = (): void => {
     if (!slider.value) return
@@ -13,10 +21,29 @@ const updateStatus = (): void => {
 }
 
 
+
 const emit = defineEmits(['update'])
 const update = (): void => {
     emit('update', data.value)
 }
+
+
+onMounted(() => {
+    watch(
+        () => prop.theme,
+        (newTheme) => {
+            if (!slider.value) return
+            if (newTheme) {
+                slider.value.style.maxWidth = '80px'
+            } else {
+                slider.value.style.maxWidth = '30px'
+            }
+
+            data.value = newTheme
+        },
+        { immediate: true }
+    )
+})
 </script>
 
 
