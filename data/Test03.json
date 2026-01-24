@@ -1,10 +1,1 @@
-{
-    "hello": "world",
-    "name": "Test03",
-    "description": "Test03",
-    "author": "Cybernetica",
-    "version": "1.0.0",
-    "license": "MIT",
-    "type": "test",
-    "main": "Test03.js"
-}
+{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"{"},{"type":"hardBreak"},{"type":"text","text":"  \"hello\": \"world\","},{"type":"hardBreak"},{"type":"text","text":"  \"name\": \"Test03\","},{"type":"hardBreak"},{"type":"text","text":"  \"description\": \"Test03\","},{"type":"hardBreak"},{"type":"text","text":"  \"author\": \"Cybernetica\","},{"type":"hardBreak"},{"type":"text","text":"  \"version\": \"1.0.0\","},{"type":"hardBreak"},{"type":"text","text":"  \"license\": \"MIT\","},{"type":"hardBreak"},{"type":"text","text":"  \"type\": \"test\","},{"type":"hardBreak"},{"type":"text","text":"}"}]}]}

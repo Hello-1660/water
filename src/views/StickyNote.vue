@@ -4,13 +4,11 @@ import Button from '../components/Button.vue'
 import Popup from '../components/Popup.vue'
 import Select from '../components/Select.vue'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { p } from 'vue-router/dist/router-CWoNjPRp.mjs'
 
 const TEXT = 'txt'
 const HTML = 'html'
 const JSON = 'json'
 const SELECTWIDTHSIZE = 0.25
-const DELETE = 'delete'
 
 const theme = ref('light')
 const initTheme = computed(() => theme.value !== 'light')
@@ -29,6 +27,7 @@ const fileData = ref<any>({
     type: 'text',
     content: ''
 })
+
 
 
 
@@ -53,13 +52,33 @@ const updateTheme = (value: boolean) => {
 
 const handleSave = (save: any) => {
     if (save.msg === 'success') {
-        fileData.value.content = save.data
+        let saveData = ''
+        if (currentFile.value.type === HTML) {
+            saveData = save.data.html
+        } else if (currentFile.value.type === JSON) { 
+            saveData = save.data.json
+        } else if (currentFile.value.type === TEXT) { 
+            saveData = save.data.text
+        } else { 
+            saveData = save.data.text
+        }
+
+        fileData.value.content = saveData
+        if (currentFile.value.name !== '') {
+            saveFile(currentFile.value.name, currentFile.value.type, (data: any) => console.log(data))
+            return 
+        }
+
+        isShowSavePopup.value = true
     }
 }
 
 
-const saveFile = (name: string, type: string) => {
-    return window.electronAPI.saveFile(name, type, fileData.value.content)
+const saveFile = (name: string, type: string, func: Function) => {
+    console.log('saveFile', name, type, fileData.value.content)
+    return window.electronAPI.saveFile(name, type, fileData.value.content).then(
+        data => func(data)
+    )
 }
 
 
@@ -126,13 +145,7 @@ const addFile = () => {
 }
 
 const deleteFileEvent = () => {
-    popupSure.value = '确认'
-    popupClose.value ='取消'
-    popupTitle.value ='永久删除文件'
-    popupBody.value = '删除后，该文件将不可恢复。确认删除吗？'
-
-    currentOption.value = DELETE
-    isShowPopup.value = true
+    isShowDeletePopup.value = true
 }
 
 
@@ -151,23 +164,26 @@ onUnmounted(() => {
 
 
 
-const currentOption = ref('')
+const isShowDeletePopup = ref(false)
+const isShowSavePopup = ref(false)
 
 
-const isShowPopup = ref(false)
-const popupSure = ref('')
-const popupClose = ref('')    
-const popupTitle = ref('')
-const popupBody = ref('')
+const handleDeletePopupSure = () => {
+    deleteFile(currentFile.value.name, currentFile.value.type, (data: boolean) => {
+        console.log(data)
+        openAllFiles()
+        addFile()
+    })
+}
 
-const handlePopupSure = () => {
-    if (currentOption.value === DELETE) {
-        deleteFile(currentFile.value.name, currentFile.value.type, (data: boolean) => {
-            console.log(data)
-            openAllFiles()
-            addFile()
-        })
-    }
+
+const savePopupFileName = ref('')
+const savePopupFileType = ref('txt')
+const handleSavePopupSure = () => {
+    saveFile(savePopupFileName.value, savePopupFileType.value, (data: boolean) => {
+        console.log(data)
+        openAllFiles()
+    })
 }
 
 </script>
@@ -175,19 +191,43 @@ const handlePopupSure = () => {
 
 <template>
     <div class="sticky-note">
-        <Popup ref="popupRef" v-model="isShowPopup" 
-        :title="popupTitle"
-        width="500px" 
-        height="210px"
-        @sure="handlePopupSure"
+        <Popup ref="popupRef" v-model="isShowDeletePopup" title="永久删除文件" width="500px" height="210px"
+            @sure="handleDeletePopupSure">
+            <h3>删除后，该文件将不可恢复。确认删除吗？</h3>
+            <template #sure-text>
+                确认
+            </template>
+            <template #close-text>
+                取消
+            </template>
+        </Popup>
+
+
+
+        <Popup ref="popupRef" v-model="isShowSavePopup" 
+        title="保存文件" 
+        width="600px" 
+        height="380px"
+        @sure="handleSavePopupSure"
+        @close="savePopupFileName = ''"
         >
-        <h3>{{ popupBody }}</h3>
-        <template #sure-text>
-            {{ popupSure }}
-        </template>
-        <template #close-text>
-            {{ popupClose }}
-        </template>
+            <form class="popup-form">
+                <label for="fileName">
+                    文件名称：
+                    <input type="text" v-model="savePopupFileName" id="fileName" placeholder="请输入文件名"></input>
+                </label>
+
+                <label for="fileType">
+                    文件类型：
+                    <input type="text" v-model="savePopupFileType" id="fileType" placeholder="请输入文件类型"></input>
+                </label>
+            </form>
+            <template #sure-text>
+                确认
+            </template>
+            <template #close-text>
+                取消
+            </template>
         </Popup>
 
         <div class="func" ref="func">
@@ -289,7 +329,10 @@ const handlePopupSure = () => {
             </div>
         </div>
         <div id="editor" class="aaa" ref="editor">
-            <TextEditor :theme="theme" :file-data="fileData" @save="handleSave" />
+            <TextEditor 
+            :theme="theme" 
+            :file-data="fileData" 
+            @save="handleSave" />
         </div>
     </div>
 </template>
@@ -303,6 +346,32 @@ const handlePopupSure = () => {
     height: 100%;
     width: 100%;
 }
+
+.popup-form {
+    display: flex;
+    flex-direction: column; 
+    justify-self: center;
+    align-self: center;
+    height: 100%;
+    font-size: 24px;
+}
+
+
+.popup-form>label { 
+    margin: 20px 0;
+}
+
+.popup-form input {
+    padding: 10px 15px;
+    border: none;
+    font-size: 24px;
+    background-color: transparent;
+}
+
+.popup-form input:focus {
+    outline: none;
+}
+
 
 .func {
     position: relative;

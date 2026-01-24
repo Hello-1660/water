@@ -145,6 +145,8 @@ async function createNoteWindow() {
 	ipcMain.removeHandler('window:restore-note-window')
 	ipcMain.removeHandler('file:save')
 	ipcMain.removeHandler('file:open')
+	ipcMain.removeHandler('file:open-all')
+	ipcMain.removeHandler('file:delete')
 
 
 
@@ -174,8 +176,8 @@ async function createNoteWindow() {
 		noteWin.restore()
 	})
 
-	ipcMain.handle('file:save', (_, name: string, type: string, content: string) => {
-		saveFile(name, type, content)
+	ipcMain.handle('file:save', (_, name: string, type: string, content: string): Promise<boolean> => {
+		return saveFile(name, type, content)
 	})
 
 	ipcMain.handle('file:open', async (_, name: string) => {

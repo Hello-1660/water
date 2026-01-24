@@ -110,6 +110,8 @@ async function createNoteWindow() {
   ipcMain.removeHandler("window:restore-note-window");
   ipcMain.removeHandler("file:save");
   ipcMain.removeHandler("file:open");
+  ipcMain.removeHandler("file:open-all");
+  ipcMain.removeHandler("file:delete");
   ipcMain.handle("window:close-note-window", () => {
     if (!noteWin) return;
     noteWin.close();
@@ -128,7 +130,7 @@ async function createNoteWindow() {
     noteWin.restore();
   });
   ipcMain.handle("file:save", (_, name, type, content) => {
-    saveFile(name, type, content);
+    return saveFile(name, type, content);
   });
   ipcMain.handle("file:open", async (_, name) => {
     return await getFile(name);

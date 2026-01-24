@@ -18,7 +18,7 @@ const props = defineProps({
     fileData: {
         type: Object as () => {
             content?: string,
-            type?: 'html' | 'text' | 'json'
+            type?: string
         },
         default: () => ({ content: '', type: 'html' })
     }
@@ -158,7 +158,7 @@ const TabBackspaceSmart = Extension.create({
 })
 
 
-const setEditorContent = (fileData: { content?: string; type?: 'html' | 'text' | 'json' }) => {
+const setEditorContent = (fileData: { content?: string; type?: string }) => {
     if (editor.value && fileData.content === '') {
         editor.value.commands.setContent('')
     }
