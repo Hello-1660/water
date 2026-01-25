@@ -1,6 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
-import Note from '../Note.vue'
 
 const routes: RouteRecordRaw[] = [
     {
@@ -10,7 +9,8 @@ const routes: RouteRecordRaw[] = [
     {
         path: '/stickyNote',
         name: 'StickyNote',
-        component: () => import('../views/StickyNote.vue')
+        component: () => import('../views/StickyNote.vue'),
+        meta: { KeepAlive: true }
     },
     {
         path: '/setting',
@@ -20,7 +20,8 @@ const routes: RouteRecordRaw[] = [
     {
         path: '/timing',
         name: 'Timing',
-        component: () => import('../views/Timing.vue')
+        component: () => import('../views/Timing.vue'),
+        meta: { KeepAlive: true }
     },
     {
         path: '/todo',

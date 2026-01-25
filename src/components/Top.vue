@@ -2,6 +2,7 @@
 import { ref, Ref } from 'vue'
 
 const isMaximize: Ref<boolean> = ref(false)
+const handleMaximize: Ref<boolean> = ref(false)
 
 const closeWindow = (): void => {
     window.electronAPI.closeNoteWindow()
@@ -25,6 +26,10 @@ const restoreWindow = (): void => {
     isMaximize.value = false
 }
 
+window.addEventListener('resize', (e: Event) => {
+    document.documentElement.clientWidth > 1400 ? isMaximize.value = true : isMaximize.value = false
+    e.stopPropagation()
+})
 
 </script>
 	

@@ -195,7 +195,7 @@ const close = (e: MouseEvent) => {
 .select-container>.select-main {
     border-radius: 18px;
     box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
-    padding: 1px 10px;
+    /* padding: 1px 10px; */
     overflow: hidden;
     background-color: white;
 }
@@ -237,7 +237,7 @@ const close = (e: MouseEvent) => {
     line-height: 45px;
     border-radius: 6px;
     margin-top: 5px;
-    padding: 0 5px;
+    padding: 0 10px;
     font-size: 22px;
     user-select: none;
 }
