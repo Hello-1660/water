@@ -252,10 +252,6 @@ onMounted(() => {
                 </div>
             </div>
         </div>
-
-        <div class="timing" v-if="model === 'timing'">
-            222
-        </div>
     </div>
 </template>
 
