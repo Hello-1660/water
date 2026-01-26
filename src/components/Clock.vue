@@ -134,43 +134,46 @@ const endRunTime = () => {
     closeRunTime()
     isShowStopwatchSetting.value = true
     isRunStop.value = false
-    io.unobserve(mainRoundP.value as SVGCircleElement)
 }
 
 const stopRunTime = () => {
-
-    const ratio = Number((runTimeNum.value / formatTimeNum.value).toFixed(6))
-    console.log(ratio)
     if (isRunStop.value) {
         isRunStop.value = false
         updateRunTime()
         runTimeInterval = setInterval(updateRunTime, 1000)
-        mainRoundPActive(ratio, runTimeNum.value + 0.1)
+
+        mainRoundActiveRunning()
     } else {            
         isRunStop.value = true
         clearInterval(runTimeInterval as NodeJS.Timeout)
         runTimeInterval = null
-        mainRoundActiveStop(ratio)
+        mainRoundActiveStop()
     }
 }
 
 
 
+const mainRoundPActive = (len: string, time: number) => {
+    if (!mainRoundP.value) return
 
-const mainRoundPActive = (ratio: number, time: number) => {
-    if (mainRoundP.value) {
-        mainRoundP.value.classList.add('svg-active')
-        mainRoundP.value.style.setProperty('--len', `${2356 * ratio}`)
-        mainRoundP.value.style.setProperty('--t', `${time}s`)
-    }
+    mainRoundP.value.style.setProperty('--l', `${mainRoundP.value.getTotalLength()}`)
+    mainRoundP.value.style.setProperty('--len', len)
+    mainRoundP.value.style.setProperty('--t', `${time}s`)
+
+    mainRoundP.value.classList.add('svg-active')
 }
 
 
-const mainRoundActiveStop = (ratio: number) => {
-    if (mainRoundP.value) {
-        mainRoundP.value.classList.remove('svg-active') 
-        mainRoundP.value.style.setProperty('--len', `${2356 * ratio}`)
-    }
+const mainRoundActiveStop = () => {
+    if (!mainRoundP.value) return
+    mainRoundP.value.classList.add('svg-paused')
+}
+
+
+const mainRoundActiveRunning = () => {
+    if (!mainRoundP.value) return  
+
+    mainRoundP.value.classList.remove('svg-paused')
 }
 
 
@@ -183,8 +186,8 @@ const stopwatchBegin = () => {
     isShowStopwatchSetting.value = false
 
     nextTick(() => {
-        io.observe(mainRoundP.value as SVGCircleElement)
-        mainRoundPActive(1, runTimeNum.value + 0.1)
+        if (!mainRoundP.value) return 
+        mainRoundPActive(mainRoundP.value.getTotalLength() + '', runTimeNum.value)
     })
 }
 
@@ -196,28 +199,6 @@ window.addEventListener('resize', () => {
         width > 1400 ? isShowRunBtn.value = true : isShowRunBtn.value = false
     }
 })
-
-
-// TODO 
-const callback = (entries: IntersectionObserverEntry[], observer: IntersectionObserver) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            console.log('entry.isIntersecting')
-            const ratio = Number((runTimeNum.value / formatTimeNum.value).toFixed(6))
-            mainRoundPActive(ratio, runTimeNum.value + 0.1)
-        } else {
-            console.log('entry.outIntersecting')
-        }
-    })
-}
-
-const options: IntersectionObserverInit = {
-    root: null,
-    rootMargin: '0px',
-    threshold: 1
-}
-
-const io = new IntersectionObserver(callback, options)
 
 
 onMounted(() => { 
@@ -236,7 +217,7 @@ onMounted(() => {
 
                 <div class="stopwatch-setting-status">
                     <div class="setting-time">
-                        <input type="number" maxlength="2" ref="hourNumInput" @blur="blur(timeHour)" v-model="timeHour" :data-id="1" @keydown.enter="handleNumberInputEnter">
+                        <input type="number" maxlength="2" ref="hourNumInput" @blur="blur" v-model="timeHour" :data-id="1" @keydown.enter="handleNumberInputEnter">
                         <input type="number" maxlength="2" ref="minuteNumInput" @blur="blur" v-model="timeMinute" :data-id="2" @keydown.enter="handleNumberInputEnter">
                         <input type="number" maxlength="2" ref="secondNumInout" @blur="blur" v-model="timeSecond" :data-id="3" @keydown.enter="handleNumberInputEnter">  
                     </div>
@@ -418,22 +399,28 @@ input[type="number"]:focus {
 }
 
 .main-round>svg>.main-round-p { 
+    --l: 0;
     --len: 0;
     --t: 0s;
     stroke:rgb(68, 143, 255);
     stroke-width: 6;
-    stroke-dasharray: 2356;
-    stroke-dashoffset: var(--len);
     transform: rotate(-90deg);
     transform-origin: 375px 375px;
 }
 
 .svg-active {
+    stroke-dasharray: var(--l);
+    stroke-dashoffset: var(--len);
     animation: active var(--t) linear forwards;
+    animation-play-state: running;
+}
+
+.svg-paused {
+    animation-play-state: paused;
 }
 
 
-@keyframes  active {
+@keyframes active {
     to {
         stroke-dashoffset: 0;
     }
