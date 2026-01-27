@@ -1,5 +1,15 @@
 <script setup lang="ts">
 import Top from './components/Top.vue'
+import { useSettingStore } from './stores/settingStore'
+import { useUiConfigStore } from './stores/uiConfigStore'
+import { onMounted } from 'vue'
+
+const uiConfigStore = useUiConfigStore()
+const settingStore = useSettingStore()
+onMounted(async () => {
+    await uiConfigStore.loadUiConfig('')
+    await settingStore.loadSetting('')
+})  
 
 </script>
 

@@ -30,3 +30,19 @@ export class UIConfig {
         this.mainConfig = parseConfig.mainConfig
     }
 }
+
+
+
+
+export interface Setting {
+    autostart: boolean
+    dark: boolean
+}
+
+export class SettingConfig {
+    public setting: Setting
+
+    constructor(parseConfig: any) {
+        this.setting = parseConfig.setting
+    }
+}

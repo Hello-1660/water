@@ -11,6 +11,12 @@ class UIConfig {
     this.mainConfig = parseConfig.mainConfig;
   }
 }
+class SettingConfig {
+  constructor(parseConfig) {
+    __publicField(this, "setting");
+    this.setting = parseConfig.setting;
+  }
+}
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
 const DATADIR = "data";
 const TODODIR = "todo";
@@ -29,7 +35,7 @@ async function createWindow() {
   const wSize = size ? size[0] : 800;
   const hSize = size ? size[1] : 600;
   win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, "wind.ico"),
+    icon: path.join(process.env.VITE_PUBLIC, "water.ico"),
     frame: false,
     width: wSize,
     height: hSize,
@@ -65,9 +71,6 @@ async function createWindow() {
       return [0, 0];
     }
   });
-  ipcMain.handle("config:get", async (_, path2) => {
-    return await readConfig(path2);
-  });
   ipcMain.handle("window:create-note-window", () => {
     if (noteWin) {
       noteWin.show();
@@ -86,7 +89,7 @@ async function createWindow() {
 }
 async function createNoteWindow() {
   noteWin = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, "wind.ico"),
+    icon: path.join(process.env.VITE_PUBLIC, "water.ico"),
     frame: false,
     width: 1400,
     height: 1e3,
@@ -113,6 +116,8 @@ async function createNoteWindow() {
   ipcMain.removeHandler("file:open");
   ipcMain.removeHandler("file:open-all");
   ipcMain.removeHandler("file:delete");
+  ipcMain.removeHandler("setting:get");
+  ipcMain.removeHandler("config:get");
   ipcMain.handle("window:close-note-window", () => {
     if (!noteWin) return;
     noteWin.close();
@@ -141,6 +146,12 @@ async function createNoteWindow() {
   });
   ipcMain.handle("file:delete", async (_, name, dir = DATADIR) => {
     return await deleteFile(name, dir);
+  });
+  ipcMain.handle("setting:get", async (_, path2) => {
+    return await readSetting(path2);
+  });
+  ipcMain.handle("config:get", async (_, path2) => {
+    return await readConfig(path2);
   });
   if (VITE_DEV_SERVER_URL) {
     noteWin.loadURL(VITE_DEV_SERVER_URL + "/note");
@@ -201,6 +212,18 @@ async function readConfig(path2) {
     const data = await fs.readFile(path2, "utf-8");
     const parseConfig = JSON.parse(data);
     return new UIConfig(parseConfig);
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+async function readSetting(path2) {
+  try {
+    if (path2 === "") path2 = process.env.APP_ROOT + "/setting.json";
+    await fs.access(path2);
+    const data = await fs.readFile(path2, "utf-8");
+    const parseConfig = JSON.parse(data);
+    return new SettingConfig(parseConfig);
   } catch (error) {
     console.error(error);
     return null;

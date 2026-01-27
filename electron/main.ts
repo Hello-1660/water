@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
-import { UIConfig } from '../src/config/Config'
+import { UIConfig, SettingConfig } from '../src/config/Config'
 import path from 'node:path'
 import fs from 'node:fs/promises'
 
@@ -43,7 +43,7 @@ async function createWindow() {
 	const hSize: number = size ? size[1] : 600
 
 	win = new BrowserWindow({
-		icon: path.join(process.env.VITE_PUBLIC, 'wind.ico'),
+		icon: path.join(process.env.VITE_PUBLIC, 'water.ico'),
 		frame: false,
 		width: wSize,
 		height: hSize,
@@ -86,10 +86,7 @@ async function createWindow() {
 		}
 	})
 
-	ipcMain.handle('config:get', async (_, path: string): Promise<UIConfig | null> => {
-		return await readConfig(path)
-	})
-
+	
 	ipcMain.handle('window:create-note-window', () => {
 		if (noteWin) {
 			noteWin.show()
@@ -115,7 +112,7 @@ async function createWindow() {
 
 async function createNoteWindow() {
 	noteWin = new BrowserWindow({
-		icon: path.join(process.env.VITE_PUBLIC, 'wind.ico'),
+		icon: path.join(process.env.VITE_PUBLIC, 'water.ico'),
 		frame: false,
 		width: 1400,
 		height: 1000,
@@ -147,6 +144,8 @@ async function createNoteWindow() {
 	ipcMain.removeHandler('file:open')
 	ipcMain.removeHandler('file:open-all')
 	ipcMain.removeHandler('file:delete')
+	ipcMain.removeHandler('setting:get')
+	ipcMain.removeHandler('config:get')
 
 
 
@@ -193,6 +192,16 @@ async function createNoteWindow() {
 	})
 
 
+	ipcMain.handle('setting:get', async (_, path: string) => {
+		return await readSetting(path)
+	})
+
+	ipcMain.handle('config:get', async (_, path: string): Promise<UIConfig | null> => {
+		return await readConfig(path)
+	})
+
+
+
 	if (VITE_DEV_SERVER_URL) {
 		noteWin.loadURL(VITE_DEV_SERVER_URL + '/note')
 	} else {
@@ -228,6 +237,7 @@ app.on('activate', () => {
 
 app.whenReady().then(async () => {
 	createNoteWindow()
+	// createWindow()
 	await createAppDataDir()
 	await createAppDataDir(TODODIR)
 })
@@ -284,6 +294,23 @@ async function readConfig(path: string): Promise<UIConfig | null> {
 
 
 		return new UIConfig(parseConfig)
+	} catch (error) {
+		console.error(error)
+		return null
+	}
+}
+
+async function readSetting(path: string): Promise<SettingConfig | null> {
+	try {
+		if (path === '') path = process.env.APP_ROOT + '/setting.json'
+
+		await fs.access(path)
+
+		const data = await fs.readFile(path, 'utf-8')
+		const parseConfig = JSON.parse(data)
+
+
+		return new SettingConfig(parseConfig)
 	} catch (error) {
 		console.error(error)
 		return null
