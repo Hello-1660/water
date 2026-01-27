@@ -56,16 +56,37 @@ watch(
 )
 
 
+const basicEditor = ref<HTMLDivElement | undefined>()
+const editorVar = ref<InstanceType<typeof EditorContent> | undefined>()
+
 const updateFontSizeCssVar = () => {
-    document.documentElement.style.setProperty('--editor-font-size', `${fontSize.value}px`)
+    if (!basicEditor.value) return  
+    basicEditor.value.style.setProperty('--editor-font-size', `${fontSize.value}px`)
 }
 
 const updateThemeCssVars = () => {
     const current = activeTheme.value === 'light' ? theme.value.light : theme.value.dark
-    document.documentElement.style.setProperty('--editor-bg', current.backGround)
-    document.documentElement.style.setProperty('--editor-color', current.color)
-    document.documentElement.style.setProperty('--editor-caret-color', current.caretColor)
-    document.documentElement.style.setProperty('--editor-selection-bg', current.selectionBackground)
+    // document.documentElement.style.setProperty('--editor-color', current.color)
+    // document.documentElement.style.setProperty('--editor-caret-color', current.caretColor)
+    
+    if (basicEditor.value) {
+        if (activeTheme.value === 'light') {
+            basicEditor.value.classList.remove('dark')
+        } else {
+            basicEditor.value.classList.add('dark')
+        }
+    }
+    
+    if (editorVar.value) {
+        if (activeTheme.value === 'light') {
+            editorVar.value.$el.classList.remove('dark')
+        } else {
+            editorVar.value.$el.classList.add('dark')
+        }
+        
+        editorVar.value.$el.documentElement.style.setProperty('--editor-selection-bg', current.selectionBackground)  
+        editorVar.value.$el.documentElement.style.setProperty('--editor-bg', current.backGround)
+    }
 }
 
 onMounted(() => {
@@ -243,32 +264,41 @@ const editor = useEditor({
 </script>
 
 <template>
-    <div class="basic-editor">
-        <editor-content :editor="editor" />
+    <div class="basic-editor" ref="basicEditor">
+        <editor-content :editor="editor" ref="editorVal"/>
     </div>
 </template>
 
 <style scoped>
 /* 亮色主题 */
-:root {
-    --editor-font-size: 30px;
+/* :root {
+
     --editor-bg: #fff;
     --editor-color: #000;
     --editor-caret-color: #000;
     --editor-selection-bg: #cddefb;
-}
+} */
+
 
 .basic-editor {
+    --editor-font-size: 30px;
     height: 100%;
     min-height: 0;
-    background-color: var(--editor-bg);
+    background-color: fff;
     overflow-x: hidden;
     overflow-y: auto;
 }
 
 
+.dark {
+    background-color: #27273a;
+    color: #fff;
+    caret-color: #fff;
+}
+
 
 :global(.tiptap) {
+    --editor-selection-bg: #cddefb;
     min-height: 100%;
     padding: 12px 14px;
     outline: none;
@@ -278,9 +308,9 @@ const editor = useEditor({
     font-family: 'Consolas', 'Microsoft YaHei', 'Courier New', monospace;
     letter-spacing: 0.5px;
     line-height: 1.6;
-    caret-color: var(--editor-caret-color);
-    color: var(--editor-color);
-    font-size: var(--editor-font-size);
+    /* caret-color: var(--editor-caret-color);
+    color: var(--editor-color); */
+    font-size: var(--editor-font-size) !important;
 }
 
 
