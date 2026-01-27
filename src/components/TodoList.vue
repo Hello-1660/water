@@ -29,6 +29,45 @@ const formatFile = (data: string) => {
 
 const todoList = ref<Todo[]>([])
 
+const num2Time = (time: number) => {
+    const totalSeconds = Math.floor(time / 1000) 
+    const hour = Math.floor(totalSeconds / 3600)
+    const day = Math.floor(totalSeconds / 86400)
+
+    return [day, hour]
+}
+
+const time2Num = (str: string) => {
+    const date = new Date(str)
+    return date.getTime()
+}
+
+
+
+const formatTime = (begin: string, end: string) => {
+    const beginTime = parseInt(begin, 10)
+    const endTime = time2Num(end)
+
+    const remainTime = endTime - beginTime
+
+    return num2Time(remainTime)
+}
+
+
+const remainTime = (arr: number[]) => {
+    if (arr[0] + arr[1] <= 0) {
+        return '已结束'
+    }
+
+    if (arr[0] === 0) {
+        return `还剩${arr[1]}小时结束`
+    } else {
+        if (arr[0] > 3) return ''
+
+        return `还剩${arr[0]}天结束`
+    }
+}
+
 
 
 const getTodoList = () => {
@@ -57,15 +96,19 @@ const getTodoListMsg = async () => {
             endTime: data.time
         })
     }
+
+    console.log(todoList.value)
 }
 
 
 const formatDateTimeLocal = (time: string) => {
-    try {
-        const dateTime = time.split('T')[0]
-        return dateTime
-    } catch (error) {
+
+    const date = new Date(time)
+        
+    if (isNaN(date.getTime())) {
         return ''
+    } else {
+        return time
     }
 }
 
@@ -125,7 +168,9 @@ window.addEventListener('resize', () => {
                     </div>
 
                     <div class="static" v-show="isShowTodoItemStatic">
-                
+                        <div class="static-time">
+                            {{ remainTime(formatTime(item.name, item.endTime)) }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -234,7 +279,14 @@ window.addEventListener('resize', () => {
 }
 
 .list-item>.static {
-    width: 150px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 200px;
     height: 100%;
+}
+
+.static>.static-time {
+    color: orange;
 }
 </style>

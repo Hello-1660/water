@@ -29,7 +29,7 @@ const currentTodo = ref<Todo>({
 
 const showEndTime = computed(() => {
     if (currentTodo.value.endTime === '') return ['', '', '']
-    return currentTodo.value.endTime.split('-')
+    return currentTodo.value.endTime.split('T')[0].split('-')
 })
 
 const handleSave = (msg: any) => {
