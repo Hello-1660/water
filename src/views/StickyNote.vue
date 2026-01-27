@@ -5,6 +5,8 @@ import Popup from '../components/Popup.vue'
 import Select from '../components/Select.vue'
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 
+
+const DATADIR = 'data'
 const TEXT = 'txt'
 const HTML = 'html'
 const JSON = 'json'
@@ -78,7 +80,7 @@ const handleSave = (save: any) => {
 
 
 const saveFile = (name: string, type: string, func: Function) => {
-    return window.electronAPI.saveFile(name, type, fileData.value.content).then(
+    return window.electronAPI.saveFile(name, type, fileData.value.content, DATADIR).then(
         data => func(data)
     )
 }
@@ -86,21 +88,21 @@ const saveFile = (name: string, type: string, func: Function) => {
 
 const openFile = (name: string, type: string, func: Function) => {
     const file = name + '.' + type
-    window.electronAPI.openFile(file).then(
+    window.electronAPI.openFile(file, DATADIR).then(
         data => func(data)
     )
 }
 
 
 const deleteFile = (name: string, type: string, func: Function) => {
-    window.electronAPI.deleteFile(name + '.' + type).then(
+    window.electronAPI.deleteFile(name + '.' + type, DATADIR).then(
         data => func(data)
     )
 }
 
 
 const openAllFiles = () => {
-    window.electronAPI.openAllFiles().then(
+    window.electronAPI.openAllFiles(DATADIR).then(
         data => selectValues.value = data
     )
 }

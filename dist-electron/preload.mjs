@@ -1,5 +1,6 @@
 "use strict";
 const electron = require("electron");
+const DATADIR = "data";
 electron.contextBridge.exposeInMainWorld("electronAPI", {
   // 设置主窗口位置
   setWindowPosition: (x, y) => electron.ipcRenderer.invoke("window:set-position", x, y),
@@ -18,11 +19,11 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
   // 读取配置文件
   getConfig: (path) => electron.ipcRenderer.invoke("config:get", path),
   // 保存文件
-  saveFile: (name, type, content) => electron.ipcRenderer.invoke("file:save", name, type, content),
+  saveFile: (name, type, content, dir = DATADIR) => electron.ipcRenderer.invoke("file:save", name, type, content, dir),
   // 获取单个文件
-  openFile: (name) => electron.ipcRenderer.invoke("file:open", name),
+  openFile: (name, dir = DATADIR) => electron.ipcRenderer.invoke("file:open", name, dir),
   // 获取所有文件信息
-  openAllFiles: () => electron.ipcRenderer.invoke("file:open-all"),
+  openAllFiles: (dir = DATADIR) => electron.ipcRenderer.invoke("file:open-all", dir),
   // 删除文件
-  deleteFile: (name) => electron.ipcRenderer.invoke("file:delete", name)
+  deleteFile: (name, dir = DATADIR) => electron.ipcRenderer.invoke("file:delete", name, dir)
 });

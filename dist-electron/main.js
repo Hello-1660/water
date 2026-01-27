@@ -13,6 +13,7 @@ class UIConfig {
 }
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
 const DATADIR = "data";
+const TODODIR = "todo";
 process.env.APP_ROOT = path.join(__dirname$1, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
@@ -129,17 +130,17 @@ async function createNoteWindow() {
     if (!noteWin) return;
     noteWin.restore();
   });
-  ipcMain.handle("file:save", (_, name, type, content) => {
-    return saveFile(name, type, content);
+  ipcMain.handle("file:save", (_, name, type, content, dir = DATADIR) => {
+    return saveFile(name, type, content, dir);
   });
-  ipcMain.handle("file:open", async (_, name) => {
-    return await getFile(name);
+  ipcMain.handle("file:open", async (_, name, dir = DATADIR) => {
+    return await getFile(name, dir);
   });
-  ipcMain.handle("file:open-all", async () => {
-    return await getAllFileList();
+  ipcMain.handle("file:open-all", async (_, dir = DATADIR) => {
+    return await getAllFileList(dir);
   });
-  ipcMain.handle("file:delete", async (_, name) => {
-    return await deleteFile(name);
+  ipcMain.handle("file:delete", async (_, name, dir = DATADIR) => {
+    return await deleteFile(name, dir);
   });
   if (VITE_DEV_SERVER_URL) {
     noteWin.loadURL(VITE_DEV_SERVER_URL + "/note");
@@ -166,6 +167,7 @@ app.on("activate", () => {
 app.whenReady().then(async () => {
   createNoteWindow();
   await createAppDataDir();
+  await createAppDataDir(TODODIR);
 });
 async function storagePosition() {
   const uiConfig = await readConfig("");
@@ -234,17 +236,17 @@ async function isFolderExist(path2) {
     return false;
   }
 }
-async function createAppDataDir() {
-  const appDataDir = path.join(getInstallSiblingDir(), DATADIR);
+async function createAppDataDir(dir = DATADIR) {
+  const appDataDir = path.join(getInstallSiblingDir(), dir);
   const exist = await isFolderExist(appDataDir);
   if (!exist) {
     await fs.mkdir(appDataDir, { recursive: true });
   }
 }
-function saveFile(name, type, file) {
+function saveFile(name, type, file, dir = DATADIR) {
   return new Promise(async (resolve, reject) => {
     try {
-      const savePath = path.join(getInstallSiblingDir(), DATADIR, name + "." + type);
+      const savePath = path.join(getInstallSiblingDir(), dir, name + "." + type);
       await fs.writeFile(savePath, file, { encoding: "utf8" });
       resolve(true);
     } catch (error) {
@@ -253,10 +255,10 @@ function saveFile(name, type, file) {
     }
   });
 }
-function getFile(name) {
+function getFile(name, dir = DATADIR) {
   return new Promise(async (resolve, reject) => {
     try {
-      const filePath = path.join(getInstallSiblingDir(), DATADIR, name);
+      const filePath = path.join(getInstallSiblingDir(), dir, name);
       const data = await fs.readFile(filePath, "utf-8");
       resolve(data);
     } catch (error) {
@@ -264,10 +266,10 @@ function getFile(name) {
     }
   });
 }
-function getAllFileList() {
+function getAllFileList(dir = DATADIR) {
   return new Promise(async (resolve, reject) => {
     try {
-      const filePath = path.join(getInstallSiblingDir(), DATADIR);
+      const filePath = path.join(getInstallSiblingDir(), dir);
       const dirents = await fs.readdir(filePath, { withFileTypes: true });
       const fileList = await Promise.all(
         dirents.filter((dirent) => dirent.isFile()).map(async (dirent) => {
@@ -286,10 +288,10 @@ function getAllFileList() {
     }
   });
 }
-function deleteFile(name) {
+function deleteFile(name, dir = DATADIR) {
   return new Promise(async (resolve, reject) => {
     try {
-      const filePath = path.join(getInstallSiblingDir(), DATADIR, name);
+      const filePath = path.join(getInstallSiblingDir(), dir, name);
       await fs.unlink(filePath);
       resolve(true);
     } catch (error) {

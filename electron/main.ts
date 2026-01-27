@@ -3,11 +3,11 @@ import { fileURLToPath } from 'node:url'
 import { UIConfig } from '../src/config/Config'
 import path from 'node:path'
 import fs from 'node:fs/promises'
-import { promises } from 'node:dns'
 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATADIR = 'data'
+const TODODIR = 'todo'
 
 // The built directory structure
 //
@@ -176,20 +176,20 @@ async function createNoteWindow() {
 		noteWin.restore()
 	})
 
-	ipcMain.handle('file:save', (_, name: string, type: string, content: string): Promise<boolean> => {
-		return saveFile(name, type, content)
+	ipcMain.handle('file:save', (_, name: string, type: string, content: string, dir: string = DATADIR): Promise<boolean> => {
+		return saveFile(name, type, content, dir)
 	})
 
-	ipcMain.handle('file:open', async (_, name: string) => {
-		return await getFile(name)
+	ipcMain.handle('file:open', async (_, name: string, dir: string = DATADIR) => {
+		return await getFile(name, dir)
 	})
 
-	ipcMain.handle('file:open-all', async () => {
-		return await getAllFileList()
+	ipcMain.handle('file:open-all', async (_, dir: string = DATADIR) => {
+		return await getAllFileList(dir)
 	})
 
-	ipcMain.handle('file:delete', async (_, name: string) => {
-		return await deleteFile(name)
+	ipcMain.handle('file:delete', async (_, name: string, dir: string = DATADIR) => {
+		return await deleteFile(name, dir)
 	})
 
 
@@ -229,6 +229,7 @@ app.on('activate', () => {
 app.whenReady().then(async () => {
 	createNoteWindow()
 	await createAppDataDir()
+	await createAppDataDir(TODODIR)
 })
 
 
@@ -308,7 +309,6 @@ function getInstallSiblingDir(): string {
 			return path.resolve(__dirname, '../')
 		}
 
-		// 1. 获取应用可执行文件路径（跨平台兼容）
 		const exePath = app.getPath('exe')
 		const exeDir = path.dirname(exePath)
 
@@ -332,8 +332,8 @@ async function isFolderExist(path: string) {
 }
 
 // 创建数据文件夹
-async function createAppDataDir() {
-	const appDataDir = path.join(getInstallSiblingDir(), DATADIR)
+async function createAppDataDir(dir: string = DATADIR) {
+	const appDataDir = path.join(getInstallSiblingDir(), dir)
 	const exist = await isFolderExist(appDataDir)
 
 	if (!exist) {
@@ -342,11 +342,12 @@ async function createAppDataDir() {
 }
 
 
+
 // 保存文件
-function saveFile(name: string, type: string, file: string): Promise<boolean> {
+function saveFile(name: string, type: string, file: string, dir: string = DATADIR): Promise<boolean> {
 	return new Promise(async (resolve, reject) => {
 		try {
-			const savePath = path.join(getInstallSiblingDir(), DATADIR, name + '.' + type)
+			const savePath = path.join(getInstallSiblingDir(), dir, name + '.' + type)
 			await fs.writeFile(savePath, file, { encoding: 'utf8' })
 			
 			resolve(true);
@@ -359,10 +360,10 @@ function saveFile(name: string, type: string, file: string): Promise<boolean> {
 
 
 // 获取文件
-function getFile(name: string): Promise<string> {
+function getFile(name: string, dir: string = DATADIR): Promise<string> {
 	return new Promise(async (resolve, reject) => {
 		try {
-			const filePath = path.join(getInstallSiblingDir(), DATADIR, name)
+			const filePath = path.join(getInstallSiblingDir(), dir, name)
 			const data = await fs.readFile(filePath, 'utf-8')
 			resolve(data)
 		} catch (error) {
@@ -377,10 +378,10 @@ interface FileType {
 }
 
 // 获取所有文件
-function getAllFileList(): Promise<FileType[]> {
+function getAllFileList(dir: string = DATADIR): Promise<FileType[]> {
 	return new Promise(async (resolve, reject) => {
 		try {
-			const filePath = path.join(getInstallSiblingDir(), DATADIR)
+			const filePath = path.join(getInstallSiblingDir(), dir)
 			const dirents = await fs.readdir(filePath, { withFileTypes: true })
 			
 			const fileList: FileType[] = await Promise.all(
@@ -407,10 +408,10 @@ function getAllFileList(): Promise<FileType[]> {
 
 
 
-function deleteFile(name: string): Promise<boolean> {
+function deleteFile(name: string, dir: string = DATADIR): Promise<boolean> {
 	return new Promise(async (resolve, reject) => {
 		try {
-			const filePath = path.join(getInstallSiblingDir(), DATADIR, name)
+			const filePath = path.join(getInstallSiblingDir(), dir, name)
 			await fs.unlink(filePath)
 			resolve(true)
 		} catch (error) {

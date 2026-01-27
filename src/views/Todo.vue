@@ -1,14 +1,85 @@
 <script setup lang="ts">
+import TodoList from '../components/TodoList.vue'
+import TodoEditor from '../components/TodoEditor.vue'
+import { ref } from 'vue'
+
+interface Todo {
+    name: string,
+    content: string,
+    endTime: string
+}
+
+const currentTodo = ref<Todo>({ name: '', content: '', endTime: '' })
+
+
+const handleOpenTodo = (data: Todo) => {
+    currentTodo.value = data
+}
+
+
+const todoList = ref<InstanceType<typeof TodoList> | null>(null)
+
+const handleSaveTodo = (data: boolean) => {
+    if (data) {
+        console.log('refresh')
+        todoList.value?.getTodoList()
+    }
+}
 
 </script>
 
 
 <template>
-    <div>
-        便签
+    <div class="container">
+         <div class="main">
+            <div class="main-show">
+                <TodoList  ref="todoList"
+                @open-todo="handleOpenTodo"
+                />
+            </div>
+
+            <div class="main-control">
+                <TodoEditor 
+                :todo="currentTodo"
+                @save-todo="handleSaveTodo"
+                />
+            </div>
+         </div>
     </div>
 </template>
 
 <style scoped>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+.main {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    width: 80%;
+    height: 80%;
+}
+
+
+.main>.main-show {
+    height: 100%;
+    width: 40%;
+}
+
+
+.main>.main-control {
+    height: 100%;
+    width: 40%;
+}
 </style>
