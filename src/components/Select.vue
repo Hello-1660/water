@@ -6,7 +6,6 @@ import {
     nextTick,
     onBeforeUnmount
 } from 'vue'
-import { f } from 'vue-router/dist/router-CWoNjPRp.mjs'
 
 
 interface SelectValue {

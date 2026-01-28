@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
 
-const prop = defineProps({
+defineProps({
     model: {
         type: String,
         default: 'stopwatch'

@@ -1,384 +1,240 @@
-var __defProp = Object.defineProperty;
-var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-import { app, BrowserWindow, ipcMain } from "electron";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
-import fs from "node:fs/promises";
-class UIConfig {
-  constructor(parseConfig) {
-    __publicField(this, "mainConfig");
-    this.mainConfig = parseConfig.mainConfig;
+var E = Object.defineProperty;
+var x = (e, n, t) => n in e ? E(e, n, { enumerable: !0, configurable: !0, writable: !0, value: t }) : e[n] = t;
+var y = (e, n, t) => x(e, typeof n != "symbol" ? n + "" : n, t);
+import { app as u, BrowserWindow as v, ipcMain as o } from "electron";
+import { fileURLToPath as b } from "node:url";
+import c from "node:path";
+import f from "node:fs/promises";
+class L {
+  constructor(n) {
+    y(this, "mainConfig");
+    this.mainConfig = n.mainConfig;
   }
 }
-class SettingConfig {
-  constructor(parseConfig) {
-    __publicField(this, "setting");
-    this.setting = parseConfig.setting;
+class H {
+  constructor(n) {
+    y(this, "setting");
+    this.setting = n.setting;
   }
 }
-const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
-const DATADIR = "data";
-const TODODIR = "todo";
-process.env.APP_ROOT = path.join(__dirname$1, "..");
-const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
-const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
-const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
-let isDev = process.env.NODE_ENV === "development";
-let win;
-let noteWin;
-let isStorage = false;
-async function createWindow() {
-  const position = await getPosition();
-  const size = await initSize();
-  const wSize = size ? size[0] : 800;
-  const hSize = size ? size[1] : 600;
-  win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, "water.ico"),
-    frame: false,
-    width: wSize,
-    height: hSize,
-    resizable: false,
-    transparent: true,
-    show: false,
-    skipTaskbar: true,
+const S = c.dirname(b(import.meta.url)), d = "data", z = "todo";
+process.env.APP_ROOT = c.join(S, "..");
+const g = process.env.VITE_DEV_SERVER_URL, j = c.join(process.env.APP_ROOT, "dist-electron"), _ = c.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = g ? c.join(process.env.APP_ROOT, "public") : _;
+let N = process.env.NODE_ENV === "development", l, r, P = !1;
+async function R() {
+  const e = await U(), n = await k(), t = n ? n[0] : 800, i = n ? n[1] : 600;
+  l = new v({
+    icon: c.join(process.env.VITE_PUBLIC, "water.ico"),
+    frame: !1,
+    width: t,
+    height: i,
+    resizable: !1,
+    transparent: !0,
+    show: !1,
+    skipTaskbar: !0,
     webPreferences: {
-      preload: path.join(MAIN_DIST, "preload.mjs"),
-      nodeIntegration: false,
-      contextIsolation: true
+      preload: c.join(j, "preload.mjs"),
+      nodeIntegration: !1,
+      contextIsolation: !0
     }
-  });
-  if (!position || !position[0] || !position[1]) {
-    win.center();
-  } else {
-    win.setPosition(position[0], position[1]);
-  }
-  ipcMain.handle("window:set-position", (_, x, y) => {
-    if (win) win.setPosition(x, y, true);
-    if (!isStorage) {
-      isStorage = true;
-      setTimeout(() => {
-        storagePosition();
-        isStorage = false;
-      }, 500);
-    }
-  });
-  ipcMain.handle("window:get-position", () => {
-    if (win) {
-      return win.getPosition();
-    } else {
-      return [0, 0];
-    }
-  });
-  ipcMain.handle("window:create-note-window", () => {
-    if (noteWin) {
-      noteWin.show();
+  }), !e || !e[0] || !e[1] ? l.center() : l.setPosition(e[0], e[1]), o.handle("window:set-position", (s, a, w) => {
+    l && l.setPosition(a, w, !0), P || (P = !0, setTimeout(() => {
+      V(), P = !1;
+    }, 500));
+  }), o.handle("window:get-position", () => l ? l.getPosition() : [0, 0]), o.handle("window:create-note-window", () => {
+    if (r) {
+      r.show();
       return;
     }
-    createNoteWindow();
-  });
-  if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL);
-  } else {
-    win.loadFile(path.join(RENDERER_DIST, "index.html"));
-  }
-  win.on("ready-to-show", () => {
-    win == null ? void 0 : win.show();
+    C();
+  }), g ? l.loadURL(g) : l.loadFile(c.join(_, "index.html")), l.on("ready-to-show", () => {
+    l == null || l.show();
   });
 }
-async function createNoteWindow() {
-  noteWin = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, "water.ico"),
-    frame: false,
+async function C() {
+  r = new v({
+    icon: c.join(process.env.VITE_PUBLIC, "water.ico"),
+    frame: !1,
     width: 1400,
     height: 1e3,
-    resizable: false,
-    show: false,
+    resizable: !1,
+    show: !1,
     webPreferences: {
-      preload: path.join(MAIN_DIST, "preload.mjs"),
-      nodeIntegration: false,
-      contextIsolation: true,
-      webSecurity: false,
-      spellcheck: false
+      preload: c.join(j, "preload.mjs"),
+      nodeIntegration: !1,
+      contextIsolation: !0,
+      webSecurity: !1,
+      spellcheck: !1
     }
-  });
-  noteWin.webContents.on("before-input-event", (event, input) => {
-    if (input.control && ["=", "-", "0"].includes(input.key)) {
-      event.preventDefault();
-    }
-  });
-  ipcMain.removeHandler("window:close-note-window");
-  ipcMain.removeHandler("window:max-note-window");
-  ipcMain.removeHandler("window:min-note-window");
-  ipcMain.removeHandler("window:restore-note-window");
-  ipcMain.removeHandler("file:save");
-  ipcMain.removeHandler("file:open");
-  ipcMain.removeHandler("file:open-all");
-  ipcMain.removeHandler("file:delete");
-  ipcMain.removeHandler("setting:get");
-  ipcMain.removeHandler("config:get");
-  ipcMain.removeHandler("setting:set");
-  ipcMain.removeHandler("config:set");
-  ipcMain.handle("window:close-note-window", () => {
-    if (!noteWin) return;
-    noteWin.close();
-    noteWin = null;
-  });
-  ipcMain.handle("window:max-note-window", () => {
-    if (!noteWin) return;
-    noteWin.maximize();
-  });
-  ipcMain.handle("window:min-note-window", () => {
-    if (!noteWin) return;
-    noteWin.minimize();
-  });
-  ipcMain.handle("window:restore-note-window", () => {
-    if (!noteWin) return;
-    noteWin.restore();
-  });
-  ipcMain.handle("file:save", (_, name, type, content, dir = DATADIR) => {
-    return saveFile(name, type, content, dir);
-  });
-  ipcMain.handle("file:open", async (_, name, dir = DATADIR) => {
-    return await getFile(name, dir);
-  });
-  ipcMain.handle("file:open-all", async (_, dir = DATADIR) => {
-    return await getAllFileList(dir);
-  });
-  ipcMain.handle("file:delete", async (_, name, dir = DATADIR) => {
-    return await deleteFile(name, dir);
-  });
-  ipcMain.handle("setting:get", async (_, path2) => {
-    return await readSetting(path2);
-  });
-  ipcMain.handle("config:get", async (_, path2) => {
-    return await readConfig(path2);
-  });
-  ipcMain.handle("config:set", async (_, path2, config) => {
-    return writeConfig(path2, config);
-  });
-  ipcMain.handle("setting:set", async (_, path2, config) => {
-    return writeSetting(path2, config);
-  });
-  if (VITE_DEV_SERVER_URL) {
-    noteWin.loadURL(VITE_DEV_SERVER_URL + "/note");
-  } else {
-    noteWin.loadFile(path.join(RENDERER_DIST, "note.html"));
-  }
-  noteWin.on("ready-to-show", () => {
-    noteWin == null ? void 0 : noteWin.show();
+  }), g ? r.loadURL(g + "/note") : r.loadFile(c.join(_, "note.html")), r.webContents.on("before-input-event", (e, n) => {
+    n.control && ["=", "-", "0"].includes(n.key) && e.preventDefault();
+  }), o.removeHandler("window:close-note-window"), o.removeHandler("window:max-note-window"), o.removeHandler("window:min-note-window"), o.removeHandler("window:restore-note-window"), o.removeHandler("file:save"), o.removeHandler("file:open"), o.removeHandler("file:open-all"), o.removeHandler("file:delete"), o.removeHandler("setting:get"), o.removeHandler("config:get"), o.removeHandler("setting:set"), o.removeHandler("config:set"), o.handle("window:close-note-window", () => {
+    r && (r.close(), r = null);
+  }), o.handle("window:max-note-window", () => {
+    r && r.maximize();
+  }), o.handle("window:min-note-window", () => {
+    r && r.minimize();
+  }), o.handle("window:restore-note-window", () => {
+    r && r.restore();
+  }), o.handle("file:save", (e, n, t, i, s = d) => B(n, t, i, s)), o.handle("file:open", async (e, n, t = d) => await W(n, t)), o.handle("file:open-all", async (e, n = d) => await $(n)), o.handle("file:delete", async (e, n, t = d) => await q(n, t)), o.handle("setting:get", async (e, n) => await T(n)), o.handle("config:get", async (e, n) => await p(n)), o.handle("config:set", async (e, n, t) => A(n, t)), o.handle("setting:set", async (e, n, t) => J(n, t)), r.on("ready-to-show", () => {
+    r == null || r.show();
   });
 }
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-    win = null;
-    noteWin = null;
-  }
+u.on("window-all-closed", () => {
+  process.platform !== "darwin" && (u.quit(), l = null, r = null);
 });
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-    createNoteWindow();
-  }
+u.on("activate", () => {
+  v.getAllWindows().length === 0 && (R(), C());
 });
-app.whenReady().then(async () => {
-  var _a;
-  await createAppDataDir();
-  await createAppDataDir(TODODIR);
-  const setting = await readSetting("");
-  app.setLoginItemSettings({
-    openAtLogin: !!(setting == null ? void 0 : setting.setting.autostart),
-    openAsHidden: true
-  });
-  createNoteWindow();
-  if ((_a = setting == null ? void 0 : setting.setting) == null ? void 0 : _a.showClock) {
-    createWindow();
-  }
+u.whenReady().then(async () => {
+  var n;
+  await O(), await O(z);
+  const e = await T("");
+  u.setLoginItemSettings({
+    openAtLogin: !!(e != null && e.setting.autostart),
+    openAsHidden: !0
+  }), C(), (n = e == null ? void 0 : e.setting) != null && n.showClock && R();
 });
-async function storagePosition() {
-  const uiConfig = await readConfig("");
-  if (!uiConfig || !win) return;
-  const position = win.getPosition();
-  uiConfig.mainConfig.position.x = position[0];
-  uiConfig.mainConfig.position.y = position[1];
-  await writeConfig("", uiConfig);
+async function V() {
+  const e = await p("");
+  if (!e || !l) return;
+  const n = l.getPosition();
+  e.mainConfig.position.x = n[0], e.mainConfig.position.y = n[1], await A("", e);
 }
-async function getPosition() {
-  const uiConfig = await readConfig("");
-  if (!uiConfig || !uiConfig.mainConfig.position) return Promise.resolve(null);
-  return Promise.resolve([uiConfig.mainConfig.position.x, uiConfig.mainConfig.position.y]);
+async function U() {
+  const e = await p("");
+  return !e || !e.mainConfig.position ? Promise.resolve(null) : Promise.resolve([e.mainConfig.position.x, e.mainConfig.position.y]);
 }
-async function initSize() {
-  const config = await readConfig("");
-  if (!config) return Promise.resolve(null);
-  const timeFontSize = config.mainConfig.time.fontSize;
-  const TimeFontNumber = 5;
-  const dataFontSize = config.mainConfig.date.fontSize;
-  const dataFontNumber = config.mainConfig.date.content.length ? config.mainConfig.date.content.length : 12;
-  const spacing = 30;
-  const width = Math.max(timeFontSize * TimeFontNumber + spacing, dataFontSize * dataFontNumber + spacing);
-  const height = timeFontSize + dataFontSize + spacing * 2;
-  return Promise.resolve([width / 2, height]);
+async function k() {
+  const e = await p("");
+  if (!e) return Promise.resolve(null);
+  const n = e.mainConfig.time.fontSize, t = 5, i = e.mainConfig.date.fontSize, s = e.mainConfig.date.content.length ? e.mainConfig.date.content.length : 12, a = 30, w = Math.max(n * t + a, i * s + a), m = n + i + a * 2;
+  return Promise.resolve([w / 2, m]);
 }
-async function readConfig(path2) {
+async function p(e) {
   try {
-    if (path2 === "") path2 = process.env.APP_ROOT + "/config.json";
-    await fs.access(path2);
-    const data = await fs.readFile(path2, "utf-8");
-    const parseConfig = JSON.parse(data);
-    return new UIConfig(parseConfig);
-  } catch (error) {
-    console.error(error);
-    return null;
+    e === "" && (e = process.env.APP_ROOT + "/config.json"), await f.access(e);
+    const n = await f.readFile(e, "utf-8"), t = JSON.parse(n);
+    return new L(t);
+  } catch (n) {
+    return console.error(n), null;
   }
 }
-async function readSetting(path2) {
+async function T(e) {
   try {
-    if (path2 === "") path2 = process.env.APP_ROOT + "/setting.json";
-    await fs.access(path2);
-    const data = await fs.readFile(path2, "utf-8");
-    const parseConfig = JSON.parse(data);
-    return new SettingConfig(parseConfig);
-  } catch (error) {
-    console.error(error);
-    return null;
+    e === "" && (e = process.env.APP_ROOT + "/setting.json"), await f.access(e);
+    const n = await f.readFile(e, "utf-8"), t = JSON.parse(n);
+    return new H(t);
+  } catch (n) {
+    return console.error(n), null;
   }
 }
-async function writeConfig(path2, config) {
+async function A(e, n) {
   try {
-    if (path2 === "") path2 = process.env.APP_ROOT + "/config.json";
-    const old = await readConfig(path2);
-    if (old === null) {
-      await fs.writeFile(path2, JSON.stringify(config, null, 2), "utf-8");
-    } else {
-      const newConfig = deepMerge(old, config);
-      await fs.writeFile(path2, JSON.stringify(newConfig, null, 2), "utf-8");
+    e === "" && (e = process.env.APP_ROOT + "/config.json");
+    const t = await p(e);
+    if (t === null)
+      await f.writeFile(e, JSON.stringify(n, null, 2), "utf-8");
+    else {
+      const i = D(t, n);
+      await f.writeFile(e, JSON.stringify(i, null, 2), "utf-8");
     }
-    return true;
-  } catch (error) {
-    console.error(error);
-    return false;
+    return !0;
+  } catch (t) {
+    return console.error(t), !1;
   }
 }
-async function writeSetting(path2, setting) {
+async function J(e, n) {
   try {
-    if (path2 === "") path2 = process.env.APP_ROOT + "/setting.json";
-    await fs.writeFile(path2, JSON.stringify(setting, null, 2), "utf-8");
-    return true;
-  } catch (error) {
-    console.error(error);
-    return false;
+    return e === "" && (e = process.env.APP_ROOT + "/setting.json"), await f.writeFile(e, JSON.stringify(n, null, 2), "utf-8"), !0;
+  } catch (t) {
+    return console.error(t), !1;
   }
 }
-function deepMerge(target, source) {
-  const merged = { ...target };
-  for (const key in source) {
-    if (source.hasOwnProperty(key)) {
-      const targetValue = target[key];
-      const sourceValue = source[key];
-      if (sourceValue === void 0) continue;
-      if (sourceValue !== null && typeof sourceValue === "object" && !Array.isArray(sourceValue) && targetValue !== null && typeof targetValue === "object" && !Array.isArray(targetValue)) {
-        merged[key] = deepMerge(targetValue, sourceValue);
-      } else {
-        merged[key] = sourceValue;
-      }
+function D(e, n) {
+  const t = { ...e };
+  for (const i in n)
+    if (n.hasOwnProperty(i)) {
+      const s = e[i], a = n[i];
+      if (a === void 0) continue;
+      a !== null && typeof a == "object" && !Array.isArray(a) && s !== null && typeof s == "object" && !Array.isArray(s) ? t[i] = D(s, a) : t[i] = a;
     }
-  }
-  return merged;
+  return t;
 }
-function getInstallSiblingDir() {
+function h() {
   try {
-    if (isDev) {
-      return path.resolve(__dirname$1, "../");
-    }
-    const exePath = app.getPath("exe");
-    const exeDir = path.dirname(exePath);
-    return exeDir;
-  } catch (error) {
-    console.error("解析安装目录失败：", error);
-    return app.getPath("documents");
+    if (N)
+      return c.resolve(S, "../");
+    const e = u.getPath("exe");
+    return c.dirname(e);
+  } catch (e) {
+    return console.error("解析安装目录失败：", e), u.getPath("documents");
   }
 }
-async function isFolderExist(path2) {
+async function M(e) {
   try {
-    await fs.access(path2, 0);
-    const stats = await fs.stat(path2);
-    return stats.isDirectory();
-  } catch (error) {
-    return false;
+    return await f.access(e, 0), (await f.stat(e)).isDirectory();
+  } catch {
+    return !1;
   }
 }
-async function createAppDataDir(dir = DATADIR) {
-  const appDataDir = path.join(getInstallSiblingDir(), dir);
-  const exist = await isFolderExist(appDataDir);
-  if (!exist) {
-    await fs.mkdir(appDataDir, { recursive: true });
-  }
+async function O(e = d) {
+  const n = c.join(h(), e);
+  await M(n) || await f.mkdir(n, { recursive: !0 });
 }
-function saveFile(name, type, file, dir = DATADIR) {
-  return new Promise(async (resolve, reject) => {
+function B(e, n, t, i = d) {
+  return new Promise(async (s, a) => {
     try {
-      const savePath = path.join(getInstallSiblingDir(), dir, name + "." + type);
-      await fs.writeFile(savePath, file, { encoding: "utf8" });
-      resolve(true);
-    } catch (error) {
-      const errMsg = `保存文件失败：${error.message}`;
-      reject(new Error(errMsg));
+      const w = c.join(h(), i, e + "." + n);
+      await f.writeFile(w, t, { encoding: "utf8" }), s(!0);
+    } catch (w) {
+      const m = `保存文件失败：${w.message}`;
+      a(new Error(m));
     }
   });
 }
-function getFile(name, dir = DATADIR) {
-  return new Promise(async (resolve, reject) => {
+function W(e, n = d) {
+  return new Promise(async (t, i) => {
     try {
-      const filePath = path.join(getInstallSiblingDir(), dir, name);
-      const data = await fs.readFile(filePath, "utf-8");
-      resolve(data);
-    } catch (error) {
-      reject("");
+      const s = c.join(h(), n, e), a = await f.readFile(s, "utf-8");
+      t(a);
+    } catch {
+      i("");
     }
   });
 }
-function getAllFileList(dir = DATADIR) {
-  return new Promise(async (resolve, reject) => {
+function $(e = d) {
+  return new Promise(async (n, t) => {
     try {
-      const filePath = path.join(getInstallSiblingDir(), dir);
-      const dirents = await fs.readdir(filePath, { withFileTypes: true });
-      const fileList = await Promise.all(
-        dirents.filter((dirent) => dirent.isFile()).map(async (dirent) => {
-          const data = dirent.name.split(".");
-          const name = data[0];
-          const type = data[1];
+      const i = c.join(h(), e), s = await f.readdir(i, { withFileTypes: !0 }), a = await Promise.all(
+        s.filter((w) => w.isFile()).map(async (w) => {
+          const m = w.name.split("."), F = m[0], I = m[1];
           return {
-            name,
-            type
+            name: F,
+            type: I
           };
         })
       );
-      resolve(fileList);
-    } catch (error) {
-      reject([]);
+      n(a);
+    } catch {
+      t([]);
     }
   });
 }
-function deleteFile(name, dir = DATADIR) {
-  return new Promise(async (resolve, reject) => {
+function q(e, n = d) {
+  return new Promise(async (t, i) => {
     try {
-      const filePath = path.join(getInstallSiblingDir(), dir, name);
-      await fs.unlink(filePath);
-      resolve(true);
-    } catch (error) {
-      reject(false);
+      const s = c.join(h(), n, e);
+      await f.unlink(s), t(!0);
+    } catch {
+      i(!1);
     }
   });
 }
-if (process.platform === "win32") {
-  app.commandLine.appendSwitch("high-dpi-support", "true");
-  app.commandLine.appendSwitch("force-device-scale-factor", "1");
-}
+process.platform === "win32" && (u.commandLine.appendSwitch("high-dpi-support", "true"), u.commandLine.appendSwitch("force-device-scale-factor", "1"));
 export {
-  MAIN_DIST,
-  RENDERER_DIST,
-  VITE_DEV_SERVER_URL
+  j as MAIN_DIST,
+  _ as RENDERER_DIST,
+  g as VITE_DEV_SERVER_URL
 };

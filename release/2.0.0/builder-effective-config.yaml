@@ -1,0 +1,33 @@
+directories:
+  output: release/${version}
+  buildResources: build
+$schema: https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json
+appId: com.water.app
+productName: Water
+asar: true
+files:
+  - filter:
+      - dist/**
+      - dist-electron/**
+      - package.json
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ${productName}-Windows-${version}-Setup.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+mac:
+  target:
+    - dmg
+  category: public.app-category.utilities
+  artifactName: ${productName}-Mac-${version}-Installer.${ext}
+linux:
+  target:
+    - AppImage
+  artifactName: ${productName}-Linux-${version}.${ext}
+electronVersion: 30.5.1

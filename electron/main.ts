@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import { UIConfig, SettingConfig } from '../src/config/Config'
 import path from 'node:path'
@@ -128,6 +128,13 @@ async function createNoteWindow() {
 	})
 
 
+	if (VITE_DEV_SERVER_URL) {
+		noteWin.loadURL(VITE_DEV_SERVER_URL + '/note')
+	} else {
+		noteWin.loadFile(path.join(RENDERER_DIST, 'note.html'))
+	}
+
+
 	noteWin.webContents.on('before-input-event', (event, input) => {
     	// 拦截 Ctrl++ / Ctrl+- / Ctrl+0 这三个缩放快捷键
     	if (input.control && ['=', '-', '0'].includes(input.key)) {
@@ -158,6 +165,8 @@ async function createNoteWindow() {
 		noteWin.close()
 		noteWin = null
 	})
+
+
 
 	ipcMain.handle('window:max-note-window', () => {
 		if (!noteWin) return
@@ -210,13 +219,6 @@ async function createNoteWindow() {
 		return writeSetting(path, config)
 	})
 
-
-
-	if (VITE_DEV_SERVER_URL) {
-		noteWin.loadURL(VITE_DEV_SERVER_URL + '/note')
-	} else {
-		noteWin.loadFile(path.join(RENDERER_DIST, 'note.html'))
-	}
 
 	noteWin.on('ready-to-show', () => {
 		noteWin?.show()

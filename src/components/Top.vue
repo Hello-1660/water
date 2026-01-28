@@ -2,7 +2,6 @@
 import { ref, Ref } from 'vue'
 
 const isMaximize: Ref<boolean> = ref(false)
-const handleMaximize: Ref<boolean> = ref(false)
 
 const closeWindow = (): void => {
     window.electronAPI.closeNoteWindow()

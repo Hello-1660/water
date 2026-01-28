@@ -242,6 +242,7 @@ const editor = useEditor({
     content: '',
     editorProps: {
         handleKeyDown: (view, event) => {
+            console.log(view)
             // 这里可以监听全局按键
             if ((event.ctrlKey || event.metaKey) && event.key === 's') {
                 event.preventDefault()
