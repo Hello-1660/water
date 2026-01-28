@@ -21,8 +21,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	restoreNoteWindow: (): Promise<void> => ipcRenderer.invoke('window:restore-note-window'),
 	// 读取配置文件
 	getConfig: (path: string): Promise<UIConfig> => ipcRenderer.invoke('config:get', path),
+	// 修改配置文件
+	setConfig: (path: string, config: any): Promise<boolean> => ipcRenderer.invoke('config:set', path, config),
 	// 读取通用配置文件
 	getSetting: (path: string): Promise<SettingConfig> => ipcRenderer.invoke('setting:get', path),
+	// 修改通用配置文件
+	setSetting: (path: string, config: SettingConfig): Promise<boolean> => ipcRenderer.invoke('setting:set', path, config),
 	// 保存文件
 	saveFile: (name: string, type: string , content: string, dir: string = DATADIR): Promise<boolean> => ipcRenderer.invoke('file:save', name, type, content, dir),
 	// 获取单个文件
@@ -45,7 +49,9 @@ declare global {
 			minNoteWindow: () => Promise<void>
 			restoreNoteWindow: () => Promise<void>
 			getConfig: (path: string) => Promise<UIConfig>
+			setConfig: (path: string, config: any) => Promise<boolean>
 			getSetting: (path: string) => Promise<SettingConfig>
+			setSetting: (path: string, config: SettingConfig) => Promise<boolean>
 			saveFile: (name: string, type: string, content: string, dir: string) => Promise<boolean>
 			openFile: (name: string, dir: string) => Promise<string>
 			openAllFiles: (dir: String) => Promise<{name: string, type: string}[]>

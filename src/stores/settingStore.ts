@@ -10,14 +10,17 @@ export const useSettingStore = defineStore('setting', {
     }),
     getters: {
         getSetting: (state): SettingConfig | null => state.settingConfig,
-        settingContent: (state): Setting  => {
+        settingContent: (state): SettingConfig  => {
             if (!state.settingConfig) {
                 return {
-                    autostart: false,
-                    dark: false
+                    setting: {
+                        autostart: false,
+                        dark: false,
+                        showClock: true
+                    }
                 }
             } else {
-                return state.settingConfig.setting
+                return state.settingConfig
             }
         }
     },

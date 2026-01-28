@@ -3,7 +3,7 @@ import Button from '../components/Button.vue'
 import { useUiConfigStore  } from '../stores/uiConfigStore'
 import { useSettingStore } from '../stores/settingStore'
 import { storeToRefs } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const uiConfigStore = useUiConfigStore()
 const { getUIConfig } = storeToRefs(uiConfigStore)
@@ -17,18 +17,59 @@ const timeFontColor = ref(getUIConfig.value?.mainConfig.time.fontColor)
 const dataFontSize = ref(getUIConfig.value?.mainConfig.date.fontSize)
 const dataFontColor = ref(getUIConfig.value?.mainConfig.date.fontColor) 
 const dataContent = ref(getUIConfig.value?.mainConfig.date.content)
-const autostart = ref(settingContent.value.autostart)
+
+
+const autostart = ref(settingContent.value.setting.autostart)
 const handleAuoStart = (data: boolean) => {
     autostart.value = data
 }
 
 
-const dark = ref(settingContent.value.dark)
+const dark = ref(settingContent.value.setting.dark)
 const handleDark = (data: boolean) => {
     dark.value = data
 }
 
 
+const showClock = ref(settingContent.value.setting.showClock)
+
+const handleShowClock = (data: boolean) => {
+    showClock.value = data
+}
+
+
+const writeUiConfig = computed(() => {
+    return {
+        mainConfig: {
+            time: {
+                fontSize: timeFontSize.value,
+                fontColor: timeFontColor.value
+            },
+            date: {
+                fontSize: dataFontSize.value,
+                fontColor: dataFontColor.value,
+                content: dataContent.value
+            }
+        }
+    }
+})
+
+
+const writeSetting = computed(() => {
+    return {
+        setting: {
+            autostart: autostart.value,
+            dark: dark.value,
+            showClock: showClock.value
+        }
+    }
+})
+
+
+const save = () => {
+    window.electronAPI.setConfig('', writeUiConfig.value)
+    window.electronAPI.setSetting('', writeSetting.value)
+}
 
 </script>
 
@@ -44,7 +85,10 @@ const handleDark = (data: boolean) => {
                             <svg t="1769521912372" class="option-icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="9878"><path d="M512 64.437073c-247.158634 0-447.562927 200.404293-447.562927 447.562927 0 247.258537 200.404293 447.562927 447.562927 447.562927s447.463024-200.404293 447.562927-447.562927c-0.099902-247.158634-200.404293-447.463024-447.562927-447.562927z m0 777.940293c-182.421854-0.39961-330.077659-147.955512-330.377366-330.277464 0.39961-182.321951 147.955512-329.877854 330.377366-330.277463 182.321951 0.39961 329.877854 147.955512 330.277463 330.277463-0.39961 182.321951-147.955512 329.977756-330.277463 330.277464zM292.814049 270.635707L534.877659 449.560976l161.142634-104.697756L567.445854 534.178341l-4.295805 6.293854c-3.096976 3.69639-6.493659 6.993171-10.589659 9.590634-6.993171 4.595512-15.384976 7.192976-24.476097 7.192976-15.884488 0-29.770927-8.192-37.962927-20.579903l-0.39961 0.39961-196.907707-266.439805z" p-id="9879"></path></svg>
                             桌面时钟显示
                         </div>
-                        <Button id="clock">
+                        <Button id="clock"
+                        :theme="showClock"
+                        @update="handleShowClock"
+                        >
                             <template #label1>关</template>
                             <template #label2>开</template>
                         </Button>
@@ -144,6 +188,8 @@ const handleDark = (data: boolean) => {
                         <a href="https://github.com/xiaoyao-xiaoyao/xiaoyao-xiaoyao.github.io">Github</a>
                     </label>
                 </div>
+
+                <button @click="save">保存</button>
             </div>
         </div>
     </div>

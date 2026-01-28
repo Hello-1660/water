@@ -118,6 +118,8 @@ async function createNoteWindow() {
   ipcMain.removeHandler("file:delete");
   ipcMain.removeHandler("setting:get");
   ipcMain.removeHandler("config:get");
+  ipcMain.removeHandler("setting:set");
+  ipcMain.removeHandler("config:set");
   ipcMain.handle("window:close-note-window", () => {
     if (!noteWin) return;
     noteWin.close();
@@ -152,6 +154,12 @@ async function createNoteWindow() {
   });
   ipcMain.handle("config:get", async (_, path2) => {
     return await readConfig(path2);
+  });
+  ipcMain.handle("config:set", async (_, path2, config) => {
+    return await writeConfig(path2, config);
+  });
+  ipcMain.handle("setting:set", async (_, path2, config) => {
+    return await writeSetting(path2, config);
   });
   if (VITE_DEV_SERVER_URL) {
     noteWin.loadURL(VITE_DEV_SERVER_URL + "/note");
@@ -232,10 +240,44 @@ async function readSetting(path2) {
 async function writeConfig(path2, config) {
   try {
     if (path2 === "") path2 = process.env.APP_ROOT + "/config.json";
-    await fs.writeFile(path2, JSON.stringify(config, null, 2), "utf-8");
+    const old = await readConfig(path2);
+    if (old === null) {
+      await fs.writeFile(path2, JSON.stringify(config, null, 2), "utf-8");
+    } else {
+      const newConfig = deepMerge(old, config);
+      await fs.writeFile(path2, JSON.stringify(newConfig, null, 2), "utf-8");
+    }
+    return true;
   } catch (error) {
     console.error(error);
+    return false;
   }
+}
+async function writeSetting(path2, setting) {
+  try {
+    if (path2 === "") path2 = process.env.APP_ROOT + "/setting.json";
+    await fs.writeFile(path2, JSON.stringify(setting, null, 2), "utf-8");
+    return true;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+}
+function deepMerge(target, source) {
+  const merged = { ...target };
+  for (const key in source) {
+    if (source.hasOwnProperty(key)) {
+      const targetValue = target[key];
+      const sourceValue = source[key];
+      if (sourceValue === void 0) continue;
+      if (sourceValue !== null && typeof sourceValue === "object" && !Array.isArray(sourceValue) && targetValue !== null && typeof targetValue === "object" && !Array.isArray(targetValue)) {
+        merged[key] = deepMerge(targetValue, sourceValue);
+      } else {
+        merged[key] = sourceValue;
+      }
+    }
+  }
+  return merged;
 }
 function getInstallSiblingDir() {
   try {

@@ -37,6 +37,7 @@ export class UIConfig {
 export interface Setting {
     autostart: boolean
     dark: boolean
+    showClock: boolean
 }
 
 export class SettingConfig {

@@ -18,8 +18,12 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
   restoreNoteWindow: () => electron.ipcRenderer.invoke("window:restore-note-window"),
   // 读取配置文件
   getConfig: (path) => electron.ipcRenderer.invoke("config:get", path),
+  // 修改配置文件
+  setConfig: (path, config) => electron.ipcRenderer.invoke("config:set", path, config),
   // 读取通用配置文件
   getSetting: (path) => electron.ipcRenderer.invoke("setting:get", path),
+  // 修改通用配置文件
+  setSetting: (path, config) => electron.ipcRenderer.invoke("setting:set", path, config),
   // 保存文件
   saveFile: (name, type, content, dir = DATADIR) => electron.ipcRenderer.invoke("file:save", name, type, content, dir),
   // 获取单个文件

@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
-import { UIConfig, SettingConfig } from '../src/config/Config'
+import { UIConfig, SettingConfig, Setting } from '../src/config/Config'
 import path from 'node:path'
 import fs from 'node:fs/promises'
 
@@ -146,6 +146,8 @@ async function createNoteWindow() {
 	ipcMain.removeHandler('file:delete')
 	ipcMain.removeHandler('setting:get')
 	ipcMain.removeHandler('config:get')
+	ipcMain.removeHandler('setting:set')
+	ipcMain.removeHandler('config:set')
 
 
 
@@ -198,6 +200,14 @@ async function createNoteWindow() {
 
 	ipcMain.handle('config:get', async (_, path: string): Promise<UIConfig | null> => {
 		return await readConfig(path)
+	})
+
+	ipcMain.handle('config:set', async (_, path: string, config: any) => {
+		return await writeConfig(path, config)
+	})
+
+	ipcMain.handle('setting:set', async (_, path: string, config: SettingConfig) => {
+		return await writeSetting(path, config)
 	})
 
 
@@ -318,14 +328,63 @@ async function readSetting(path: string): Promise<SettingConfig | null> {
 }
 
 
-async function writeConfig(path: string, config: UIConfig): Promise<void> {
+async function writeConfig(path: string, config: any): Promise<boolean> {
 	try {
 		if (path === '') path = process.env.APP_ROOT + '/config.json'
+	  	const old = await readConfig(path)
 
-		await fs.writeFile(path, JSON.stringify(config, null, 2), 'utf-8')
+		if (old === null) {
+			await fs.writeFile(path, JSON.stringify(config, null, 2), 'utf-8')
+
+		} else {
+			const newConfig = deepMerge(old, config)
+			await fs.writeFile(path, JSON.stringify(newConfig, null, 2), 'utf-8')
+		}
+
+		return true
 	} catch (error) {
 		console.error(error)
+		return false
 	}
+}
+
+async function writeSetting(path: string, setting: SettingConfig): Promise<boolean> { 
+	try {
+		if (path === '') path = process.env.APP_ROOT + '/setting.json' 
+
+		await fs.writeFile(path, JSON.stringify(setting, null, 2), 'utf-8')
+		return true
+	} catch (error) {
+		console.error(error)
+		return false
+	}
+}
+
+// 对象合并
+function deepMerge<T extends object>(target: T, source: T): T {
+	const merged = { ...target } as T 
+
+	for (const key in source) {
+		if (source.hasOwnProperty(key)) {
+			const targetValue = target[key]
+			const sourceValue = source[key]
+
+			if (sourceValue === undefined) continue 
+
+			if (sourceValue !== null &&
+				typeof sourceValue === 'object' &&
+				!Array.isArray(sourceValue) &&
+				targetValue !== null &&
+				typeof targetValue === 'object' &&
+				!Array.isArray(targetValue)) {
+				merged[key] = deepMerge(targetValue as object, sourceValue as Partial<object>) as T[Extract<keyof T, string>]
+			} else {
+				merged[key] = sourceValue as T[Extract<keyof T, string>]
+			}
+		}
+	}
+
+	return merged
 }
 
 
