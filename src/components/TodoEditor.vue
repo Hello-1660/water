@@ -256,12 +256,12 @@ const handleSavePopupDel = () => {
     height: 100%;
     padding: 20px;
     border-radius: 20px;
-    background-color: white;
+    background-color: var(--light-todo-editor-bgc);
+    color: var(--light-font-color);
 }
 
 
 .todo-editor:hover {
-    background-color: rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -330,11 +330,11 @@ const handleSavePopupDel = () => {
 .delete-icon {
     width: 60%;
     height: 60%;
-    fill: #aaaaaa;
+    fill: var(--light-svg-main-fill);
 }
 
 .delete-icon:hover {
-    fill: #3d3d3d;
+    fill: var(--light-svg-main-hover-fill);
 }
 
 .todo-editor-main>.edit {

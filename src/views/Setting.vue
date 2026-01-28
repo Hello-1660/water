@@ -28,6 +28,14 @@ const handleAuoStart = (data: boolean) => {
 const dark = ref(settingContent.value.setting.dark)
 const handleDark = (data: boolean) => {
     dark.value = data
+
+    if (dark.value) {
+        change2NightTheme()
+    } else {
+        change2LightTheme()
+    }
+
+    save()
 }
 
 
@@ -71,6 +79,39 @@ const save = () => {
     window.electronAPI.setSetting('', writeSetting.value)
 }
 
+
+
+const change2LightTheme = () => {
+    document.documentElement.style.setProperty('--light-main-bgc', '#f9f9f9')
+    document.documentElement.style.setProperty('--light-second-bgc', '#f2f2f2')
+    document.documentElement.style.setProperty('--light-item-bgc', '#f5f5f5')
+    document.documentElement.style.setProperty('--light-svg-fill', '#999999')
+    document.documentElement.style.setProperty('--light-svg-hover-fill', '#484848')
+    document.documentElement.style.setProperty('--light-svg-main-fill', '#aaaaaa')
+    document.documentElement.style.setProperty('--light-svg-main-hover-fill', '#3d3d3d')
+    document.documentElement.style.setProperty('--light-font-color', '#262626')
+    document.documentElement.style.setProperty('--light-font-second-color', '#626262')
+    document.documentElement.style.setProperty('--light-option-bgc', '#f9f9f9')
+    document.documentElement.style.setProperty('--light-option-second-bgc', '#f2f2f2')
+    document.documentElement.style.setProperty('--light-todo-bgc', '#dbe4e6')
+    document.documentElement.style.setProperty('--light-todo-editor-bgc', '#f9f9f9')
+}
+
+const change2NightTheme = () => {
+    document.documentElement.style.setProperty('--light-main-bgc', '#161822')
+    document.documentElement.style.setProperty('--light-second-bgc', '#1f2330')
+    document.documentElement.style.setProperty('--light-item-bgc', '#383f51')
+    document.documentElement.style.setProperty('--light-svg-fill', '#929cb8')
+    document.documentElement.style.setProperty('--light-svg-hover-fill', '#fefefe')
+    document.documentElement.style.setProperty('--light-svg-main-fill', '#aaaaaa')
+    document.documentElement.style.setProperty('--light-svg-main-hover-fill', '#ffffff')
+    document.documentElement.style.setProperty('--light-font-color', '#ffffff')
+    document.documentElement.style.setProperty('--light-font-second-color', '#d7d6df')
+    document.documentElement.style.setProperty('--light-option-bgc', '#252632')
+    document.documentElement.style.setProperty('--light-option-second-bgc', '#3c3d45')
+    document.documentElement.style.setProperty('--light-todo-bgc', '#363330')
+    document.documentElement.style.setProperty('--light-todo-editor-bgc', '#27273a')
+}
 </script>
 
 
@@ -208,6 +249,8 @@ const save = () => {
     align-items: center;
     width: 100%;
     height: 100%;
+    background-color: var(--light-main-bgc);
+    color: var(--light-font-color) !important;
 }
 
 .setting-main {
@@ -215,14 +258,12 @@ const save = () => {
     height: 95%;
     overflow-x: hidden;
     overflow-y: auto;
-    /* background-color: pink; */
 }   
 
 .setting-main>.item {
     width: 100%;
     padding: 10px;
     margin-bottom: 50px;
-    /* background-color: yellow; */
     user-select: none;
 }
 
@@ -231,6 +272,7 @@ const save = () => {
     font-weight: bold;
     padding: 0 20px;
     margin-bottom: 20px;
+    color: var(--light-font-second-color);
 }
 
 .setting-main>.item>.option {
@@ -240,7 +282,7 @@ const save = () => {
     padding: 10px 20px;
     font-size: 25px;
     border-radius: 20px;
-    background-color: rgb(248, 245, 245);
+    background-color: var(--light-item-bgc);
 }
 
 .setting-main>.item>.option>label {
@@ -260,6 +302,7 @@ const save = () => {
     width: 40px;
     height: 40px;
     margin-right: 15px;
+    fill: var(--light-font-second-color);
 }
 
 .setting-main>.item>.option>label>input[type="number"] {
@@ -289,6 +332,12 @@ const save = () => {
 .setting-main>.item>.option>label>a:hover {
     color: rgb(0, 0, 0);
 }
+
+input {
+    background-color: var(--light-option-bgc);
+    color: var(--light-font-color);
+}
+
 
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {

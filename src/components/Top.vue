@@ -62,7 +62,7 @@ window.addEventListener('resize', (e: Event) => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: rgb(235, 234, 234);
+    background-color: var(--light-second-bgc);
     user-select: none;
     -webkit-app-region: drag;   
     min-height: 0;
@@ -74,6 +74,7 @@ window.addEventListener('resize', (e: Event) => {
     display: flex;
     align-items: center;
     gap: 10px;
+    color: var(--light-font-second-color);
 }
 
 img {
@@ -85,13 +86,13 @@ img {
     width: 20px;
     height: 20px;
     padding: 10px 20px;
-    fill: rgb(112, 112, 112);
+    fill: var(--light-svg-fill);
     -webkit-app-region: no-drag
 }
 
 .icon:hover {
     background-color: rgb(219, 219, 219);
-    fill: black;
+    fill: var(--light-svg-hover-fill);
 }
 
 #close:hover {

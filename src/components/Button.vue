@@ -59,9 +59,7 @@ onMounted(() => {
 
         <div @click="updateStatus" id="btn">
             <div ref="slider" class="slider">
-                <div class="circle">
-
-                </div>
+                <div class="circle"></div>
             </div>
         </div>
     </div>

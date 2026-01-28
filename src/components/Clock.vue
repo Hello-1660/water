@@ -276,6 +276,8 @@ input[type="number"]:focus {
 .clock {
     width: 100%;
     height: 100%;
+    color: var(--light-font-color);
+    background-color: var(--light-option-bgc);
 }
 
 .stopwatch {
@@ -329,6 +331,8 @@ input[type="number"]:focus {
     padding: 0 10px;
     border: none;
     border-radius: 10px;
+    background-color: var(--light-option-second-bgc);
+    color: var(--light-font-color);
     box-shadow: 0 5px 10px rgba(0, 0, 0, 0.126);
 }
 
@@ -342,6 +346,7 @@ input[type="number"]:focus {
     margin-right: 200px;
     border-radius: 40px;
     box-shadow: 0 5px 10px rgba(0, 0, 0, 0.126);
+    background-color: var(--light-option-second-bgc);
     cursor: pointer;
 }
 

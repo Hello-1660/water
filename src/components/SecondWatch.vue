@@ -179,6 +179,8 @@ window.addEventListener('resize', () => {
 .second-watch {
     width: 100%;
     height: 100%;
+    color: var(--light-font-color);
+    background-color: var(--light-option-bgc);
 }
 
 .second-watch>.second-watch-main {
@@ -226,7 +228,6 @@ window.addEventListener('resize', () => {
     justify-content: space-between;
     width: 100%;
     height: 80px;
-    /* background-color: pink; */
 }
 
 .log>.log-item>div {
@@ -259,6 +260,7 @@ window.addEventListener('resize', () => {
     height: 80px;
     border-radius: 40px;
     box-shadow: 0 5px 10px rgba(0, 0, 0, 0.126);
+    background-color: var(--light-option-second-bgc);
     cursor: pointer;
 }
 

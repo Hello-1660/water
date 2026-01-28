@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
-import { UIConfig, SettingConfig, Setting } from '../src/config/Config'
+import { UIConfig, SettingConfig } from '../src/config/Config'
 import path from 'node:path'
 import fs from 'node:fs/promises'
 

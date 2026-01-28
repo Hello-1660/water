@@ -31,7 +31,7 @@ const handleSaveTodo = (data: boolean) => {
 
 <template>
     <div class="container">
-         <div class="main">
+         <div class="todo-main">
             <div class="main-show">
                 <TodoList  ref="todoList"
                 @open-todo="handleOpenTodo"
@@ -63,7 +63,7 @@ const handleSaveTodo = (data: boolean) => {
     height: 100%;
 }
 
-.main {
+.todo-main {
     display: flex;
     justify-content: space-around;
     align-items: center;
@@ -72,14 +72,18 @@ const handleSaveTodo = (data: boolean) => {
 }
 
 
-.main>.main-show {
+.todo-main>.main-show {
     height: 100%;
     width: 40%;
+    background-color: #f2faff;
+    border-radius: 12px;
 }
 
 
-.main>.main-control {
+.todo-main>.main-control {
     height: 100%;
     width: 40%;
+    border-radius: 12px;    
 }
+
 </style>

@@ -359,7 +359,7 @@ const setResultPopup = async (content: string, color: boolean) => {
                 </svg>
             </div>
         </div>
-        <div id="editor" class="aaa" ref="editor">
+        <div id="editor" ref="editor">
             <TextEditor :theme="theme" :file-data="fileData" @save="handleSave" />
         </div>
     </div>
@@ -373,6 +373,7 @@ const setResultPopup = async (content: string, color: boolean) => {
     min-height: 0;
     height: 100%;
     width: 100%;
+    background-color: var(--light-main-bgc);
 }
 
 .sticky-note>.popup-container {
@@ -503,11 +504,11 @@ const setResultPopup = async (content: string, color: boolean) => {
 .func>.func-main .option>svg {
     width: 40px;
     height: 40px;
-    fill: #cccccc;
+    fill: var(--light-svg-fill);
 }
 
 .func>.func-main>.option>svg:hover {
-    fill: #757575;
+    fill: var(--light-svg-hover-fill);
 }
 
 
@@ -529,7 +530,7 @@ const setResultPopup = async (content: string, color: boolean) => {
     visibility: hidden;
     width: 100%;
     height: 100%;
-    fill: rgb(187, 187, 187);
+    fill: var(--light-svg-fill);
     transform: scaleX(3);
 }
 
@@ -545,5 +546,6 @@ const setResultPopup = async (content: string, color: boolean) => {
     border-radius: 10px 10px 0 0;
     overflow: hidden;
     transition: height 0.2s ease-in-out;
+    background-color: #f9f9f9 !important;
 }
 </style>

@@ -190,9 +190,8 @@ window.addEventListener('resize', () => {
     height: 100%;
     padding: 20px;
     border-radius: 12px;
-    border: 6px solid rgb(219, 219, 219);
     user-select: none;
-    background-color: #3939390e;
+    background-color: var(--light-todo-bgc);
 }
 
 .todo-list>.todo-list-main {
@@ -207,7 +206,7 @@ window.addEventListener('resize', () => {
     font-size: 60px;
     width: 100%;
     height: 70px;
-    color: #7a7575;
+    color: var(--light-font-second-color);
     margin-bottom: 40px;
 }
 
@@ -227,13 +226,13 @@ window.addEventListener('resize', () => {
 }
 
 .todo-list-main-title>.list-add:hover >svg {
-    fill: #3d3d3d;
+    fill: var(--light-svg-hover-fill);
 }
 
 .todo-list-main-title>.list-add>svg {
     width: 60%;
     height: 80%;
-    fill: #aaaaaa;
+    fill: var(--light-svg-fill);
 }
 
 .todo-list>.todo-list-main>.list {
@@ -254,7 +253,7 @@ window.addEventListener('resize', () => {
     height: 60px;
     line-height: 60px;
     font-size: 30px;
-    color: #7a7575;
+    color: var(--light-font-color);
     margin-bottom: 5px;
     border-bottom: 2px solid #7a75755f;
     cursor: pointer;

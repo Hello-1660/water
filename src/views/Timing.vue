@@ -59,7 +59,7 @@ const isShow = ref(0)
     visibility: hidden;
     width: 100%;
     height: 100%;
-    fill: #aaaaaa;
+    fill: var(--light-svg-main-fill);
 }
 
 .return:hover >svg {
@@ -71,7 +71,7 @@ const isShow = ref(0)
     display: flex;
     justify-content: space-around;
     align-items: center;
-    /* background-color: pink; */
+    background-color: var(--light-option-bgc);
 }
 
 .choose>div {
@@ -99,21 +99,21 @@ const isShow = ref(0)
 .container-btn>.icon {
     width: 100%;
     height: 100%;
-    fill: #aaaaaa;
+    fill: var(--light-svg-main-fill);
 }
 
 .container-btn>.icon:hover {
-    fill: #3d3d3d;
+    fill: var(--light-svg-main-hover-fill);
 }
 
 .icon2 {
     width: 90%;
     height: 90%;
-    fill: #aaaaaa;
+    fill: var(--light-svg-main-fill);
 }
 
 .icon2:hover {
-    fill: #3d3d3d;
+    fill: var(--light-svg-main-hover-fill);
 }
 
 .container-size {

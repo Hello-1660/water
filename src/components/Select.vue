@@ -195,9 +195,9 @@ const close = (e: MouseEvent) => {
 .select-container>.select-main {
     border-radius: 18px;
     box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
-    /* padding: 1px 10px; */
     overflow: hidden;
-    background-color: white;
+    background-color: var(--light-option-bgc);
+    color: var(--light-font-color);
 }
 
 
@@ -209,6 +209,7 @@ const close = (e: MouseEvent) => {
     font-size: 28px;
     border: none;
     background-color: transparent;
+    color: var(--light-font-color);
 }
 
 .select-input:focus {

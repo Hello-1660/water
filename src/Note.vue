@@ -9,6 +9,8 @@ const settingStore = useSettingStore()
 onMounted(async () => {
     await uiConfigStore.loadUiConfig('')
     await settingStore.loadSetting('')
+
+    
 })  
 
 </script>
@@ -74,6 +76,23 @@ onMounted(async () => {
 </template>
 
 <style>
+:root {
+    --light-main-bgc: #f9f9f9;
+    --light-second-bgc: #f2f2f2;
+    --light-item-bgc: #f5f5f5;
+    --light-svg-fill: #999999;
+    --light-svg-hover-fill: #484848;
+    --light-svg-main-fill: #aaaaaa;
+    --light-svg-main-hover-fill: #3d3d3d;
+    --light-font-color: #262626;
+    --light-font-second-color: #626262;
+    --light-option-bgc: #f9f9f9;
+    --light-option-second-bgc: #f2f2f2;
+    --light-todo-bgc: #dbe4e6;
+    --light-todo-editor-bgc: #f9f9f9;
+}
+
+
 .container {
     display: flex;
     box-sizing: border-box;
@@ -82,6 +101,7 @@ onMounted(async () => {
     width: 100%;
     height: 100%;
     max-height: 100%;
+    background-color: var(--light-main-bgc);
 }
 
 .main {
@@ -99,7 +119,7 @@ onMounted(async () => {
     align-items: start;
     width: 80px;
     height: 100%;
-    background-color: #f3f4f6;
+    background-color: var(--light-second-bgc);
     user-select: none;
 }
 
@@ -120,23 +140,23 @@ onMounted(async () => {
 }
 
 .main>.option>.nav-link:hover svg {
-    fill: #3d3d3d;
+    fill: var(--light-svg-hover-fill);
 }
 
 .main>.option>.nav-link:hover .link {
-    color: #3d3d3d;
+    color: var(--light-svg-hover-fill);
 }
 
 .main>.option>.nav-link>svg {
     width: 35px;
     height: 35px;
     margin-bottom: 5px;
-    fill:  #aaaaaa;
+    fill:  var(--light-svg-fill);
 }
 
 .main>.option>.nav-link>.link {
     font-size: 20px;
-    color: #aaaaaa;
+    color: var(--light-svg-fill);
 }
 
 .main>.show {

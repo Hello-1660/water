@@ -15,7 +15,8 @@ const routes: RouteRecordRaw[] = [
     {
         path: '/setting',
         name: 'Setting',
-        component: () => import('../views/Setting.vue')
+        component: () => import('../views/Setting.vue'),
+        meta: { KeepAlive: true }
     },
     {
         path: '/timing',
@@ -26,7 +27,8 @@ const routes: RouteRecordRaw[] = [
     {
         path: '/todo',
         name: 'Todo',
-        component: () => import('../views/Todo.vue')
+        component: () => import('../views/Todo.vue'),
+        meta: { KeepAlive: true }
     }
 ]
 
