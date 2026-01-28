@@ -6,10 +6,13 @@ import { storeToRefs } from 'pinia'
 import { computed, ref, nextTick, onMounted } from 'vue'
 
 const uiConfigStore = useUiConfigStore()
-const { getUIConfig } = storeToRefs(uiConfigStore)
+const { getUIConfig, dateStyle } = storeToRefs(uiConfigStore)
 
 const settingStore = useSettingStore()
 const { settingContent } = storeToRefs(settingStore)
+
+
+console.log('style',dateStyle.value)
 
 
 const timeFontSize = ref(getUIConfig.value?.mainConfig.time.fontSize)
@@ -137,10 +140,20 @@ const setResultPopup = async (content: string, color: boolean) => {
 
     isShowResultPopup.value = true
     setTimeout(() => {
-        isShowResultPopup.value = false;
+        isShowResultPopup.value = false
     }, 2500)
 }
 
+
+
+const handleSave = (e: KeyboardEvent) => {
+
+    if (e.ctrlKey && (e.key === 's' || e.key === 's' || e.code === 'KeyS')) {
+        e.preventDefault()
+        e.stopPropagation()
+        save()
+    }
+}
 
 onMounted(async () => {
     await uiConfigStore.loadUiConfig('')
@@ -150,7 +163,7 @@ onMounted(async () => {
 
 
 <template>
-    <div class="container">
+    <div class="container" tabindex="0" @keydown="handleSave($event)">
         <div :id="resultColor ? 'green' : 'red'"  class="popup-container" :class="{'tip' : isShowResultPopup}" v-if="isShowResultPopup">
             <div class="img"></div>
             <div class="content">{{ resultPopupContent }}</div>
@@ -265,8 +278,6 @@ onMounted(async () => {
                         <a href="https://github.com/xiaoyao-xiaoyao/xiaoyao-xiaoyao.github.io">Github</a>
                     </label>
                 </div>
-
-                <button @click="save">保存</button>
             </div>
         </div>
     </div>
@@ -287,6 +298,10 @@ onMounted(async () => {
     height: 100%;
     background-color: var(--light-main-bgc);
     color: var(--light-font-color) !important;
+}
+
+.container:focus {
+  outline: none;
 }
 
 .container>.popup-container {

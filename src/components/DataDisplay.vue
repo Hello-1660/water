@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onBeforeUpdate, ref } from 'vue'
 import { useUiConfigStore  } from '../stores/uiConfigStore'
 import { storeToRefs } from 'pinia'
 
@@ -12,17 +12,21 @@ if (!getUIConfig.value) {
     content.value = 'Hello Water!'
 }
 
+
+onBeforeUpdate(() => {
+	content.value = getUIConfig.value?.mainConfig.date.content
+})
+
 const createNoteWindow = (): void => { 
 	window.electronAPI.createNoteWindow()
 }
 </script>
 	
 <template>
-	<div class="date" @click="createNoteWindow" :style="dateStyle">
+	<div class="date" @click="createNoteWindow" :style="dateStyle" >
 		{{ content }}
 	</div>
 </template>
 
 <style scoped>
-
 </style>

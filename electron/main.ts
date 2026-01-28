@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, screen } from 'electron'
 import { fileURLToPath } from 'node:url'
 import { UIConfig, SettingConfig } from '../src/config/Config'
 import path from 'node:path'
@@ -246,10 +246,21 @@ app.on('activate', () => {
 })
 
 app.whenReady().then(async () => {
-	createNoteWindow()
-	// createWindow()
 	await createAppDataDir()
 	await createAppDataDir(TODODIR)
+
+	const setting = await readSetting('')
+
+	app.setLoginItemSettings({
+		openAtLogin: !!setting?.setting.autostart,
+		openAsHidden: true
+	})
+
+	createNoteWindow()
+
+	if (setting?.setting?.showClock) {
+		createWindow()
+	}
 })
 
 
@@ -505,6 +516,10 @@ function deleteFile(name: string, dir: string = DATADIR): Promise<boolean> {
 		}
 	})
 } 
+
+
+
+
 
 
 // 防止界面拖拽卡顿

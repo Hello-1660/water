@@ -184,9 +184,18 @@ app.on("activate", () => {
   }
 });
 app.whenReady().then(async () => {
-  createNoteWindow();
+  var _a;
   await createAppDataDir();
   await createAppDataDir(TODODIR);
+  const setting = await readSetting("");
+  app.setLoginItemSettings({
+    openAtLogin: !!(setting == null ? void 0 : setting.setting.autostart),
+    openAsHidden: true
+  });
+  createNoteWindow();
+  if ((_a = setting == null ? void 0 : setting.setting) == null ? void 0 : _a.showClock) {
+    createWindow();
+  }
 });
 async function storagePosition() {
   const uiConfig = await readConfig("");

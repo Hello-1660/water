@@ -1,19 +1,19 @@
 {
   "mainConfig": {
     "time": {
-      "fontSize": 50,
+      "fontSize": 100,
       "fontFamily": "Arial",
-      "fontColor": "#ec2727"
+      "fontColor": "#ffffff"
     },
     "date": {
-      "fontSize": 60,
+      "fontSize": 100,
       "fontFamily": "Arial",
-      "fontColor": "#1ac179",
-      "content": "Hello World"
+      "fontColor": "#ffffff",
+      "content": "Hello"
     },
     "position": {
-      "x": 1151,
-      "y": 510
+      "x": 1208,
+      "y": 410
     }
   }
 }
