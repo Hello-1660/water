@@ -46,7 +46,7 @@ const isShowYear = ref(false)
 
 
 
-const emit = defineEmits(['saveTodo'])
+const emit = defineEmits(['saveTodo', 'deleteTodo'])
 
 const saveTodo = (content: string, endTime: string) => {
     const data = endTime + "\r\n" + content
@@ -61,7 +61,7 @@ const deleteTodo = (name: string) => {
             console.log(data)
             currentTodo.value = { name: '', content: '', endTime: '' }
             isShowStatic.value = false
-            emit('saveTodo', data)
+            emit('deleteTodo', data)
         }
     )
 }

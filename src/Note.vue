@@ -2,17 +2,16 @@
 import Top from './components/Top.vue'
 import { useSettingStore } from './stores/settingStore'
 import { useUiConfigStore } from './stores/uiConfigStore'
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 
 const uiConfigStore = useUiConfigStore()
 const settingStore = useSettingStore()
 onMounted(async () => {
     await uiConfigStore.loadUiConfig('')
     await settingStore.loadSetting('')
-
-    
 })  
 
+const currentRouter = ref('')
 </script>
 
 <template>
@@ -20,7 +19,7 @@ onMounted(async () => {
         <Top />
         <div class="main">
             <div class="option">
-                <router-link to="/stickyNote" class="nav-link">
+                <router-link to="/stickyNote" class="nav-link" :class="{ 'active' : currentRouter === 'stickyNote' }" @click="currentRouter = 'stickyNote'">
                     <svg t="1769091801240" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                         p-id="33274">
                         <path
@@ -30,8 +29,8 @@ onMounted(async () => {
                     <div class="link">笔记</div>
                 </router-link>
 
-                <router-link to="/todo" class="nav-link">
-                    <svg t="1769091621907" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
+                <router-link to="/todo" class="nav-link" :class="{ 'active' : currentRouter === 'todo' }" @click="currentRouter = 'todo'">
+                    <svg  t="1769091621907" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                         p-id="26286">
                         <path
                             d="M806.912 0H217.088C131.072 0 63.488 69.632 63.488 155.648v782.336c0 30.72 16.384 59.392 43.008 75.776 12.288 6.144 26.624 10.24 40.96 10.24 16.384 0 30.72-4.096 45.056-12.288l307.2-194.56c4.096-2.048 8.192-4.096 12.288-4.096 4.096 0 8.192 2.048 10.24 4.096l307.2 194.56c14.336 8.192 28.672 12.288 45.056 12.288 14.336 0 28.672-4.096 40.96-10.24 26.624-16.384 43.008-45.056 43.008-75.776V155.648c2.048-86.016-65.536-153.6-151.552-155.648z m67.584 956.416c-4.096 0-8.192-2.048-10.24-4.096l-307.2-194.56c-14.336-8.192-28.672-12.288-45.056-12.288-16.384 0-30.72 4.096-45.056 12.288L161.792 952.32c-4.096 2.048-6.144 4.096-10.24 4.096-6.144 0-10.24-2.048-14.336-6.144-4.096-4.096-6.144-8.192-6.144-14.336V155.648c0-47.104 38.912-86.016 86.016-88.064h589.824c47.104 0 86.016 38.912 86.016 88.064v780.288c0 10.24-8.192 18.432-18.432 20.48z"
@@ -43,8 +42,8 @@ onMounted(async () => {
                     <div class="link">便签</div>
                 </router-link>
 
-                <router-link to="/timing" class="nav-link">
-                    <svg t="1769091968129" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
+                <router-link to="/timing" class="nav-link" :class="{ 'active' : currentRouter === 'timing' }" @click="currentRouter = 'timing'">
+                    <svg  t="1769091968129" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                         p-id="34643">
                         <path
                             d="M521.142857 576h242.285714a36.571429 36.571429 0 0 1 0 73.142857H484.571429a36.571429 36.571429 0 0 1-36.278858-41.142857 36.937143 36.937143 0 0 1-0.292571-4.571429V228.571429a36.571429 36.571429 0 0 1 73.142857 0v347.428571zM512 1024C229.229714 1024 0 794.770286 0 512S229.229714 0 512 0s512 229.229714 512 512-229.229714 512-512 512z m0-73.142857c242.358857 0 438.857143-196.498286 438.857143-438.857143S754.358857 73.142857 512 73.142857 73.142857 269.641143 73.142857 512s196.498286 438.857143 438.857143 438.857143z"
@@ -53,7 +52,7 @@ onMounted(async () => {
                     <div class="link">计时</div>
                 </router-link>
 
-                <router-link to="/setting" id="setting" class="nav-link">
+                <router-link to="/setting" id="setting" class="nav-link" @click="currentRouter = 'setting'">
                     <svg t="1769092206653" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                         p-id="38767">
                         <path
@@ -90,6 +89,26 @@ onMounted(async () => {
     --light-option-second-bgc: #f2f2f2;
     --light-todo-bgc: #dbe4e6;
     --light-todo-editor-bgc: #f9f9f9;
+    --light-active-router-bgc: linear-gradient(90deg, #5f5f5f 10%, #5f5f5f 10%, rgba(0, 0, 0, 0) 10%);
+    --light-scrollbar-bgc: #ebebeb;
+}
+
+
+::-webkit-scrollbar {
+    width: 10px;
+    border-radius: 20px;
+    background-color: transparent;
+}
+
+
+::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 20px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--light-scrollbar-bgc);
+    border-radius: 20px;
 }
 
 
@@ -122,6 +141,11 @@ onMounted(async () => {
     background-color: var(--light-second-bgc);
     user-select: none;
 }
+
+.main>.option .active {
+    background: var(--light-active-router-bgc);
+}
+
 
 .main>.option>.nav-link {
     display: flex;

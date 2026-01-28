@@ -41,7 +41,7 @@ export const useUiConfigStore = defineStore('uiConfig', {
                 fontSize: `${dateConfig.fontSize}px`,
                 fontFamily: dateConfig.fontFamily,
                 color: dateConfig.fontColor
-            };
+            }
         }
     },
     actions: {
@@ -63,4 +63,4 @@ export const useUiConfigStore = defineStore('uiConfig', {
             }
         }
     }
-});
+})

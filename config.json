@@ -6,7 +6,7 @@
       "fontColor": "#ec2727"
     },
     "date": {
-      "fontSize": 50,
+      "fontSize": 60,
       "fontFamily": "Arial",
       "fontColor": "#1ac179",
       "content": "Hello World"

@@ -270,16 +270,6 @@ const editor = useEditor({
 </template>
 
 <style scoped>
-/* 亮色主题 */
-/* :root {
-
-    --editor-bg: #fff;
-    --editor-color: #000;
-    --editor-caret-color: #000;
-    --editor-selection-bg: #cddefb;
-} */
-
-
 .basic-editor {
     --editor-font-size: 30px;
     height: 100%;
@@ -308,8 +298,6 @@ const editor = useEditor({
     font-family: 'Consolas', 'Microsoft YaHei', 'Courier New', monospace;
     letter-spacing: 0.5px;
     line-height: 1.6;
-    /* caret-color: var(--editor-caret-color);
-    color: var(--editor-color); */
     font-size: var(--editor-font-size) !important;
 }
 

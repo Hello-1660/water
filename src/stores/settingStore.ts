@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { SettingConfig, Setting } from '../config/Config'
+import { SettingConfig } from '../config/Config'
 
 
 export const useSettingStore = defineStore('setting', {
@@ -41,4 +41,4 @@ export const useSettingStore = defineStore('setting', {
             }
         }
     }
-});
+})

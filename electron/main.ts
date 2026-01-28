@@ -203,11 +203,11 @@ async function createNoteWindow() {
 	})
 
 	ipcMain.handle('config:set', async (_, path: string, config: any) => {
-		return await writeConfig(path, config)
+		return writeConfig(path, config)
 	})
 
 	ipcMain.handle('setting:set', async (_, path: string, config: SettingConfig) => {
-		return await writeSetting(path, config)
+		return writeSetting(path, config)
 	})
 
 

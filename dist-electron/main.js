@@ -156,10 +156,10 @@ async function createNoteWindow() {
     return await readConfig(path2);
   });
   ipcMain.handle("config:set", async (_, path2, config) => {
-    return await writeConfig(path2, config);
+    return writeConfig(path2, config);
   });
   ipcMain.handle("setting:set", async (_, path2, config) => {
-    return await writeSetting(path2, config);
+    return writeSetting(path2, config);
   });
   if (VITE_DEV_SERVER_URL) {
     noteWin.loadURL(VITE_DEV_SERVER_URL + "/note");
