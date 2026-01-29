@@ -11,7 +11,7 @@ onMounted(async () => {
     await settingStore.loadSetting('')
 })  
 
-const currentRouter = ref('stickyNote')
+const currentRouter = ref('todo')
 </script>
 
 <template>

@@ -203,20 +203,24 @@ async function createNoteWindow() {
 	})
 
 
-	ipcMain.handle('setting:get', async (_, path: string) => {
-		return await readSetting(path)
+	ipcMain.handle('setting:get', async (_, p: string) => {
+		if (!isDev) p = path.join(getInstallSiblingDir(), 'setting.json') 
+		return await readSetting(p)
 	})
 
-	ipcMain.handle('config:get', async (_, path: string): Promise<UIConfig | null> => {
-		return await readConfig(path)
+	ipcMain.handle('config:get', async (_, p: string): Promise<UIConfig | null> => {
+		if (!isDev) p = path.join(getInstallSiblingDir(), 'config.json') 
+		return await readConfig(p)
 	})
 
-	ipcMain.handle('config:set', async (_, path: string, config: any) => {
-		return writeConfig(path, config)
+	ipcMain.handle('config:set', async (_, p: string, config: any) => {
+		if (!isDev) p = path.join(getInstallSiblingDir(), 'config.json') 
+		return writeConfig(p, config)
 	})
 
-	ipcMain.handle('setting:set', async (_, path: string, config: SettingConfig) => {
-		return writeSetting(path, config)
+	ipcMain.handle('setting:set', async (_, p: string, config: SettingConfig) => {
+		if (!isDev) p = path.join(getInstallSiblingDir(), 'setting.json') 
+		return writeSetting(p, config)
 	})
 
 
@@ -250,8 +254,12 @@ app.on('activate', () => {
 app.whenReady().then(async () => {
 	await createAppDataDir()
 	await createAppDataDir(TODODIR)
+	await initConfigFile()
+	await initSettingFile()
 
-	const setting = await readSetting('')
+	const p = isDev ? '' : path.join(getInstallSiblingDir(), 'setting.json')
+
+	const setting = await readSetting(p)
 
 	app.setLoginItemSettings({
 		openAtLogin: !!setting?.setting.autostart,
@@ -428,6 +436,71 @@ async function isFolderExist(path: string) {
 	} catch (error) {
 		return false
 	}
+}
+
+
+// 判断文件是否存在
+async function isFileExist(path: string) {
+	try {
+		await fs.access(path, 0)
+		const stats = await fs.stat(path)
+		return stats.isFile()
+	} catch (error) {
+		return false
+	}
+}
+
+
+// 初始化配置文件
+async function initConfigFile() { 
+	if (isDev) return 
+
+	const p = path.join(getInstallSiblingDir(), 'config.json')
+	
+	if (!await isFileExist(p)) return  
+
+	const content = `
+{
+  "mainConfig": {
+    "time": {
+      "fontSize": 50,
+      "fontColor": "#ffffff",
+      "fontFamily": "Arial"
+    },
+    "date": {
+      "fontSize": 20,
+      "fontColor": "#ffffff",
+      "fontFamily": "Arial",
+      "content": "Hello"
+    },
+    "position": {
+      "x": 1077,
+      "y": 587
+    }
+  }
+}`
+
+	await fs.writeFile(p, content, 'utf-8')
+}
+
+
+async function initSettingFile() { 
+	if (isDev) return 
+
+	const p = path.join(getInstallSiblingDir(), 'setting.json')
+
+	if (!await isFileExist(p)) return
+
+	const content = `
+	{
+		"setting": {
+			"autostart": true,
+			"dark": false,
+			"showClock": true
+		}
+	}`
+
+	await fs.writeFile(p, content, 'utf-8')
 }
 
 // 创建数据文件夹

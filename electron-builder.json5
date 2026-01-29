@@ -15,11 +15,11 @@
   files: [
     "dist/**",
     "dist-electron/**",
-    "package.json"
+    "package.json",
   ],
 
-
   win: {
+    icon: "public/icon.ico",
     target: [
       {
         target: "nsis",
