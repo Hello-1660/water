@@ -39,12 +39,26 @@ const props = defineProps({
 const selectList = ref(props.selectValues)
 const searchList = ref<SelectValue[]>([])
 const isSearch = ref(false)
+const isBeginSearch = ref(false)
+const isBeginSearchContent = ref<string>('')
+
+
+const resort = () => {
+    setTimeout(() => {
+        if (!isBeginSearch.value) return 
+        
+        findValue.value = isBeginSearchContent.value
+    }, 100) 
+}
 
 const search = () => {
+    isBeginSearch.value = true
+    isBeginSearchContent.value = findValue.value
+
     if (findValue.value === '' || selectList.value.length === 0) {
         isSearch.value = false
     } else {
-        isSearch.value = true
+        isSearch.value = selectList.value.length !== 0
     }
 
     isShow.value = true
@@ -174,6 +188,7 @@ watch(
 )
 
 const handleLiClick = (value: SelectValue) => { 
+    isBeginSearch.value = false
     emit('data', value)
     findValue.value = value.name
     isShow.value = false
@@ -196,18 +211,22 @@ const close = (e: MouseEvent) => {
     <Teleport to="body">
         <div ref="floatingRef" class="select-container">
             <div ref="selectMain" class="select-main">
-                <input v-model="findValue" class="select-input" @focus="search()" type="text"placeholder="请选择" />
+                <input v-model="findValue" class="select-input" @focus="search()" @blur="resort()" type="text"placeholder="请选择" />
 
                 <div v-show="!isSearch" class="select-list" :id="isShow ? 'up' : ''">
                     <ul class="list">
-                        <li v-for="(value, index) in selectList" :key="index"  @click="handleLiClick(value)">{{ value.name }}</li>
+                        <li v-for="(value, index) in selectList" :key="index"  @click="handleLiClick(value)">{{ value.name + '.' + value.type }}</li>
                     </ul>
                 </div>
 
                 <div v-show="isSearch" class="select-list" :id="isShow ? 'up' : ''">
                     <ul class="list">
-                        <li v-for="(value, index) in searchList" :key="index"  @click="handleLiClick(value)">{{ value.name }}</li>
+                        <li v-for="(value, index) in searchList" :key="index"  @click="handleLiClick(value)">{{ value.name + '.' + value.type }}</li>
                     </ul>
+                </div>
+
+                <div v-show="selectList.length === 0 && isShow" :id="isShow ? 'up' : ''" class="no-data">
+                    新建无限可能
                 </div>
             </div>
         </div>
@@ -276,6 +295,18 @@ const close = (e: MouseEvent) => {
 
 .select-list>.list>li:hover {
     background-color: rgba(0, 0, 0, 0.1);
+}
+
+
+.no-data {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 25px;
+    color: var(--light-font-color);
+    width: 100%;
+    height: 80px;
+    user-select: none;
 }
 
 

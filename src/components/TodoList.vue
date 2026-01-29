@@ -173,6 +173,10 @@ window.addEventListener('resize', () => {
                         </div>
                     </div>
                 </div>
+
+                <div class="no-data" v-show="todoList.length === 0">
+                    一日清闲自在仙
+                </div>
             </div>
         </div>
     </div>
@@ -257,6 +261,15 @@ window.addEventListener('resize', () => {
     margin-bottom: 5px;
     border-bottom: 2px solid #7a75755f;
     cursor: pointer;
+}
+
+.todo-list>.todo-list-main>.list>.no-data {
+    flex: 1;    
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 40px;
+    color: var(--light-font-color);
 }
 
 .list-item>.point {
