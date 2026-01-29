@@ -37,6 +37,19 @@ const props = defineProps({
 
 
 const selectList = ref(props.selectValues)
+const searchList = ref<SelectValue[]>([])
+const isSearch = ref(false)
+
+const search = () => {
+    if (findValue.value === '' || selectList.value.length === 0) {
+        isSearch.value = false
+    } else {
+        isSearch.value = true
+    }
+
+    isShow.value = true
+}
+
 const containerStyle = ref<Record<string, string>>({
     width: props.width,
     height: props.height
@@ -145,7 +158,20 @@ onBeforeUnmount(() => {
 
 
 const isShow = ref(false)
-const findValue = ref<string>()
+const findValue = ref<string>('')
+
+watch(
+    () => findValue.value,
+    val => {
+        if (val === '') {
+            isSearch.value = false
+        } else {
+            isSearch.value = true
+        }
+
+        searchList.value = selectList.value.filter(item => item.name.includes(val))
+    }
+)
 
 const handleLiClick = (value: SelectValue) => { 
     emit('data', value)
@@ -170,11 +196,17 @@ const close = (e: MouseEvent) => {
     <Teleport to="body">
         <div ref="floatingRef" class="select-container">
             <div ref="selectMain" class="select-main">
-                <input v-model="findValue" class="select-input" @focus="isShow = true" type="text"placeholder="请选择" />
+                <input v-model="findValue" class="select-input" @focus="search()" type="text"placeholder="请选择" />
 
-                <div class="select-list" :id="isShow ? 'up' : ''">
+                <div v-show="!isSearch" class="select-list" :id="isShow ? 'up' : ''">
                     <ul class="list">
                         <li v-for="(value, index) in selectList" :key="index"  @click="handleLiClick(value)">{{ value.name }}</li>
+                    </ul>
+                </div>
+
+                <div v-show="isSearch" class="select-list" :id="isShow ? 'up' : ''">
+                    <ul class="list">
+                        <li v-for="(value, index) in searchList" :key="index"  @click="handleLiClick(value)">{{ value.name }}</li>
                     </ul>
                 </div>
             </div>

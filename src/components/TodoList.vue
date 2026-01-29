@@ -163,7 +163,7 @@ window.addEventListener('resize', () => {
             <div class="list">
                 <div class="list-item" v-for="item in todoList" :key="item.name" @click="openTodo(item)">
                     <div class="point"></div>
-                    <div class="content">
+                    <div class="content" :class="{ delete: remainTime(formatTime(item.name, item.endTime)) === '已结束' }">
                         {{ item.content }}
                     </div>
 
@@ -287,5 +287,11 @@ window.addEventListener('resize', () => {
 
 .static>.static-time {
     color: orange;
+}
+
+
+
+.delete {
+    text-decoration: line-through;
 }
 </style>

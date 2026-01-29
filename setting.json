@@ -1,7 +1,7 @@
 {
   "setting": {
-    "autostart": true,
-    "dark": false,
-    "showClock": true
+    "autostart": false,
+    "dark": true,
+    "showClock": false
   }
 }

@@ -116,6 +116,7 @@ let runTimeInterval: NodeJS.Timeout | null = null
 const updateRunTime = () => {
     if (runTimeNum.value <= 0) {
         closeRunTime()
+        mainRoundActiveStop()
         return
     }
 
