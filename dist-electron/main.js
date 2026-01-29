@@ -20,6 +20,7 @@ class SettingConfig {
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
 const DATADIR = "data";
 const TODODIR = "todo";
+const TIMETABLE = "timeTable";
 process.env.APP_ROOT = path.join(__dirname$1, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
@@ -191,6 +192,7 @@ app.whenReady().then(async () => {
   var _a;
   await createAppDataDir();
   await createAppDataDir(TODODIR);
+  await createAppDataDir(TIMETABLE);
   await initConfigFile();
   await initSettingFile();
   const p = isDev ? "" : path.join(getInstallSiblingDir(), "setting.json");

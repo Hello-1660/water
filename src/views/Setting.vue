@@ -434,7 +434,7 @@ onMounted(async () => {
     padding: 5px 10px;
     font-size: 25px;
     border-radius: 10px;
-    border: 1px solid rgb(200, 200, 200);
+    border: 1px solid rgb(200, 200,     200);
 }
 
 .setting-main>.item>.option>label>a {

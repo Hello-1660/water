@@ -28,6 +28,11 @@ const routes: RouteRecordRaw[] = [
         name: 'Todo',
         component: () => import('../views/Todo.vue'),
         meta: { KeepAlive: true }
+    },
+    {
+        path: '/timeTable',
+        name: 'TimeTable',
+        component: () => import('../views/TimeTable.vue'),
     }
 ]
 

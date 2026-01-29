@@ -8,6 +8,7 @@ import fs from 'node:fs/promises'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATADIR = 'data'
 const TODODIR = 'todo'
+const TIMETABLE = 'timeTable'
 
 // The built directory structure
 //
@@ -254,6 +255,7 @@ app.on('activate', () => {
 app.whenReady().then(async () => {
 	await createAppDataDir()
 	await createAppDataDir(TODODIR)
+	await createAppDataDir(TIMETABLE)
 	await initConfigFile()
 	await initSettingFile()
 
