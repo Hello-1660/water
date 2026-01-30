@@ -114,13 +114,13 @@ const runTime = computed(() => {
 let runTimeInterval: NodeJS.Timeout | null = null 
 
 const updateRunTime = () => {
+    runTimeNum.value -= 1
+
     if (runTimeNum.value <= 0) {
         closeRunTime()
         mainRoundActiveStop()
         return
     }
-
-    runTimeNum.value -= 1
 }
 
 
@@ -139,6 +139,8 @@ const endRunTime = () => {
 
 const stopRunTime = () => {
     if (isRunStop.value) {
+        if (runTimeNum.value <= 0) return 
+
         isRunStop.value = false
         updateRunTime()
         runTimeInterval = setInterval(updateRunTime, 1000)

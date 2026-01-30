@@ -6,13 +6,10 @@ import { storeToRefs } from 'pinia'
 import { computed, ref, nextTick, onMounted } from 'vue'
 
 const uiConfigStore = useUiConfigStore()
-const { getUIConfig, dateStyle } = storeToRefs(uiConfigStore)
+const { getUIConfig } = storeToRefs(uiConfigStore)
 
 const settingStore = useSettingStore()
 const { settingContent } = storeToRefs(settingStore)
-
-
-console.log('style',dateStyle.value)
 
 
 const timeFontSize = ref(getUIConfig.value?.mainConfig.time.fontSize)
@@ -85,6 +82,8 @@ const save = async () => {
     
     const msg = result[0] && result[1] ? '保存成功' : '保存失败'
     setResultPopup(msg, result[0] && result[1])
+
+    initDate()
 }
 
 
@@ -155,9 +154,30 @@ const handleSave = (e: KeyboardEvent) => {
     }
 }
 
-onMounted(async () => {
+const initDate = async() => {
+    const uiConfigStore = useUiConfigStore()
+    const { getUIConfig } = storeToRefs(uiConfigStore)
+
+    const settingStore = useSettingStore()
+    const { settingContent } = storeToRefs(settingStore)
+
     await uiConfigStore.loadUiConfig('')
     await settingStore.loadSetting('')
+
+    timeFontSize.value = getUIConfig.value?.mainConfig.time.fontSize
+    timeFontColor.value = getUIConfig.value?.mainConfig.time.fontColor
+    dataFontSize.value = getUIConfig.value?.mainConfig.date.fontSize
+    dataFontColor.value = getUIConfig.value?.mainConfig.date.fontColor 
+    dataContent.value = getUIConfig.value?.mainConfig.date.content
+
+    autostart.value = settingContent.value.setting.autostart
+    dark.value = settingContent.value.setting.dark
+    showClock.value = settingContent.value.setting.showClock
+}
+
+onMounted(async () => {
+    initDate()
+    console.log(111)
 })  
 </script>
 

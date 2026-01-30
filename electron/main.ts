@@ -465,13 +465,13 @@ async function initConfigFile() {
 {
   "mainConfig": {
     "time": {
-      "fontSize": 50,
-      "fontColor": "#ffffff",
+      "fontSize": 80,
+      "fontColor": "#000000",
       "fontFamily": "Arial"
     },
     "date": {
-      "fontSize": 20,
-      "fontColor": "#ffffff",
+      "fontSize": 80,
+      "fontColor": "#000000",
       "fontFamily": "Arial",
       "content": "Hello"
     },
@@ -496,7 +496,7 @@ async function initSettingFile() {
 	const content = `
 	{
 		"setting": {
-			"autostart": true,
+			"autostart": false,
 			"dark": false,
 			"showClock": true
 		}

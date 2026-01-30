@@ -142,7 +142,11 @@ const handleClose = () => {
 
 const handleDel = (data: string) => {
     delTable(data)
-    getTableList(() => isShow.value = 0)
+    getTableList()
+
+    setTimeout(() => {
+        isShow.value = 0
+    }, 200)
 }
 
 onMounted(() => {
@@ -339,6 +343,7 @@ onMounted(() => {
     border-radius: 10px;
     background-color: var(--light-option-bgc);
     box-shadow: 0 5px 13px rgba(0, 0, 0, 0.126);
+    cursor: pointer;
 }
 
 .show-table-list>ul>.add {

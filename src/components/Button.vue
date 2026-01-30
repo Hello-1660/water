@@ -93,6 +93,7 @@ onMounted(() => {
     overflow: hidden;
     box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.5);
     background-color: rgb(255, 255, 255);
+    cursor: pointer;
 }
 
 .slider {

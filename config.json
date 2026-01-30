@@ -2,14 +2,14 @@
   "mainConfig": {
     "time": {
       "fontSize": 50,
-      "fontColor": "#ffffff",
+      "fontColor": "#302121",
       "fontFamily": "Arial"
     },
     "date": {
-      "fontSize": 20,
+      "fontSize": 50,
       "fontColor": "#ffffff",
       "fontFamily": "Arial",
-      "content": "Hello"
+      "content": "Hel"
     },
     "position": {
       "x": 1077,
