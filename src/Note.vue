@@ -3,12 +3,39 @@ import Top from './components/Top.vue'
 import { useSettingStore } from './stores/settingStore'
 import { useUiConfigStore } from './stores/uiConfigStore'
 import { onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 
 const uiConfigStore = useUiConfigStore()
 const settingStore = useSettingStore()
+
+
+const change2NightTheme = () => {
+    document.documentElement.style.setProperty('--light-main-bgc', '#161822')
+    document.documentElement.style.setProperty('--light-second-bgc', '#1f2330')
+    document.documentElement.style.setProperty('--light-item-bgc', '#383f51')
+    document.documentElement.style.setProperty('--light-svg-fill', '#929cb8')
+    document.documentElement.style.setProperty('--light-svg-hover-fill', '#fefefe')
+    document.documentElement.style.setProperty('--light-svg-main-fill', '#aaaaaa')
+    document.documentElement.style.setProperty('--light-svg-main-hover-fill', '#ffffff')
+    document.documentElement.style.setProperty('--light-font-color', '#ffffff')
+    document.documentElement.style.setProperty('--light-font-second-color', '#d7d6df')
+    document.documentElement.style.setProperty('--light-option-bgc', '#252632')
+    document.documentElement.style.setProperty('--light-option-second-bgc', '#3c3d45')
+    document.documentElement.style.setProperty('--light-todo-bgc', '#363330')
+    document.documentElement.style.setProperty('--light-todo-editor-bgc', '#27273a')
+    document.documentElement.style.setProperty('--light-active-router-bgc', 'linear-gradient(90deg, #f6f0ff 10%, #f6f0ff 10%, rgba(0, 0, 0, 0) 10%)')
+    document.documentElement.style.setProperty('--light-scrollbar-bgc', '#1e1e2d')
+}
+
 onMounted(async () => {
     await uiConfigStore.loadUiConfig('')
     await settingStore.loadSetting('')
+
+    const { settingContent } = storeToRefs(settingStore)
+
+    if (settingContent.value.setting.dark) {
+        change2NightTheme()
+    }
 })  
 
 const currentRouter = ref('todo')

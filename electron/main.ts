@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, Tray, Menu, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import { UIConfig, SettingConfig } from '../src/config/Config'
 import path from 'node:path'
@@ -35,13 +35,29 @@ let isDev: boolean = process.env.NODE_ENV === 'development'
 let win: BrowserWindow | null
 let noteWin: BrowserWindow | null
 let isStorage: boolean = false
+// 系统托盘
+let tray: Tray | null 
+
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+  	app.quit()
+}
+
 
 async function createWindow() {
+	if (win) return
+
+	let p: string = ''
+
+	if (!isDev) p = path.join(getInstallSiblingDir(), 'config.json') 
+	
+
 	const position: [number, number] | null = await getPosition()
-	const size: [number, number] | null = await initSize()
+	const size: [number, number] | null = await initSize(p)
 
 	const wSize: number = size ? size[0] : 800
-	const hSize: number = size ? size[1] : 600
+	const hSize: number = size ? size[1] : 500
 
 	win = new BrowserWindow({
 		icon: path.join(process.env.VITE_PUBLIC, 'water.ico'),
@@ -73,7 +89,7 @@ async function createWindow() {
 			isStorage = true
 
 			setTimeout(() => {
-				storagePosition()
+				storagePosition(p)
 				isStorage = false
 			}, 500)
 		}
@@ -112,6 +128,11 @@ async function createWindow() {
 
 
 async function createNoteWindow() {
+	if (noteWin) {
+		noteWin.show()
+		return
+	}
+
 	noteWin = new BrowserWindow({
 		icon: path.join(process.env.VITE_PUBLIC, 'water.ico'),
 		frame: false,
@@ -259,6 +280,8 @@ app.whenReady().then(async () => {
 	await initConfigFile()
 	await initSettingFile()
 
+	createTray()
+
 	const p = isDev ? '' : path.join(getInstallSiblingDir(), 'setting.json')
 
 	const setting = await readSetting(p)
@@ -269,15 +292,15 @@ app.whenReady().then(async () => {
 	})
 
 	createNoteWindow()
-
 	if (setting?.setting?.showClock) {
 		createWindow()
+		noteWin?.hide()
 	}
 })
 
 
-async function storagePosition(): Promise<void> {
-	const uiConfig: UIConfig | null = await readConfig('')
+async function storagePosition(path: string): Promise<void> {
+	const uiConfig: UIConfig | null = await readConfig(path)
 
 	if (!uiConfig || !win) return
 
@@ -297,8 +320,8 @@ async function getPosition(): Promise<[number, number] | null> {
 }
 
 
-async function initSize(): Promise<[number, number] | null> {
-	const config = await readConfig('')
+async function initSize(path: string): Promise<[number, number] | null> {
+	const config = await readConfig(path)
 	if (!config) return Promise.resolve(null)
 
 	const timeFontSize: number = config.mainConfig.time.fontSize
@@ -459,7 +482,7 @@ async function initConfigFile() {
 
 	const p = path.join(getInstallSiblingDir(), 'config.json')
 	
-	if (!await isFileExist(p)) return  
+	if (await isFileExist(p)) return  
 
 	const content = `
 {
@@ -491,7 +514,7 @@ async function initSettingFile() {
 
 	const p = path.join(getInstallSiblingDir(), 'setting.json')
 
-	if (!await isFileExist(p)) return
+	if (await isFileExist(p)) return
 
 	const content = `
 	{
@@ -593,6 +616,60 @@ function deleteFile(name: string, dir: string = DATADIR): Promise<boolean> {
 		}
 	})
 } 
+
+
+
+// 创建系统托盘
+const createTray = () => {
+	if (tray) return
+	
+
+    // 托盘图标
+    const iconPath = path.join(process.env.VITE_PUBLIC, 'water.ico')
+
+    tray = new Tray(iconPath)
+
+    // 创建上下文菜单
+    const contextMenu = Menu.buildFromTemplate([
+        {
+            label: '显示/隐藏',
+            click: () => {
+				if (!win) return 
+
+                if (win.isVisible()) {
+                    win.hide()
+                } else {
+                    win.show()
+                }
+            }
+        },
+        {
+            label: '退出',
+            click: () => {
+                app.quit()
+            }
+        }
+    ])
+
+
+    // 托盘鼠标悬停
+    tray.setToolTip('Salvation lies within')
+
+    // 设置上下文菜单
+    tray.setContextMenu(contextMenu)
+
+    // 点击托盘隐藏或显示窗口
+    tray.on('click', () => {
+		if (!win) return
+
+        if (win.isVisible()) {
+            win.hide()
+        } else {
+            win.show()
+        }
+    })
+}
+
 
 
 

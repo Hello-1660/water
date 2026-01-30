@@ -2,7 +2,6 @@
 import Button from '../components/Button.vue'
 import { useUiConfigStore  } from '../stores/uiConfigStore'
 import { useSettingStore } from '../stores/settingStore'
-import Popup from '../components/Popup.vue'
 import { storeToRefs } from 'pinia'
 import { computed, ref, nextTick, onMounted } from 'vue'
 
@@ -299,7 +298,7 @@ onMounted(async () => {
                             <svg t="1769522500641" class="option-icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="18620"><path d="M512 960A448 448 0 1 1 512 64a448 448 0 0 1 0 896zM512 153.6a358.4 358.4 0 1 0 0 716.8A358.4 358.4 0 0 0 512 153.6z m0 627.2a44.8 44.8 0 0 1-44.8-44.8V422.4a44.8 44.8 0 1 1 89.6 0v313.6a44.8 44.8 0 0 1-44.8 44.8z m0-448a44.8 44.8 0 1 1-0.064-89.536A44.8 44.8 0 0 1 512 332.8z" p-id="18621"></path></svg>
                             更多详情
                         </div> 
-                        <a href="https://github.com/xiaoyao-xiaoyao/xiaoyao-xiaoyao.github.io">Github</a>
+                        <a href="javascript:void(0)" class="a">https://github.com/Hello-1660/water</a>
                     </label>
                 </div>
             </div>
@@ -312,6 +311,10 @@ onMounted(async () => {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+}
+
+.a {
+    user-select: auto;
 }
 
 .container {
