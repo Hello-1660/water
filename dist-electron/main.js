@@ -43,14 +43,13 @@ async function createWindow() {
   const size = await initSize(p);
   const wSize = size ? size[0] : 800;
   const hSize = size ? size[1] : 500;
-  console.log("position", size);
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, "water.ico"),
     frame: false,
     width: wSize,
     height: hSize,
     resizable: false,
-    // transparent: true,
+    transparent: true,
     show: false,
     skipTaskbar: true,
     webPreferences: {
@@ -243,9 +242,8 @@ async function initSize(path2) {
   const dataFontNumber = config.mainConfig.date.content.length ? config.mainConfig.date.content.length : 12;
   const spacing = 30;
   const width = Math.max(timeFontSize * TimeFontNumber + spacing, dataFontSize * dataFontNumber + spacing);
-  console.log(dataFontSize, dataFontNumber);
   const height = timeFontSize + dataFontSize + spacing * 2;
-  return Promise.resolve([width, height]);
+  return Promise.resolve([width + 100, height]);
 }
 async function readConfig(path2) {
   try {

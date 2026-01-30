@@ -1,8 +1,8 @@
 version: 1.0.0
 files:
   - url: Water-Windows-1.0.0-Setup.exe
-    sha512: VvO88at63SXgnu2J+y2FD8OGgrBhcVbhpLwOXvgmgkaVsLw2qcT0ZK3+lgYrqg0yAMmWMNDiC5IKOV9wzea5pg==
-    size: 81585133
+    sha512: adLmpQifNTbwlm1EbWyZKePzNuc6vnOLzJAktLIjOPHcaXKemapufY/pJCPsGYfu54D6EofLCDZw8aEl+Ej3Tw==
+    size: 81585119
 path: Water-Windows-1.0.0-Setup.exe
-sha512: VvO88at63SXgnu2J+y2FD8OGgrBhcVbhpLwOXvgmgkaVsLw2qcT0ZK3+lgYrqg0yAMmWMNDiC5IKOV9wzea5pg==
-releaseDate: '2026-01-30T16:21:10.541Z'
+sha512: adLmpQifNTbwlm1EbWyZKePzNuc6vnOLzJAktLIjOPHcaXKemapufY/pJCPsGYfu54D6EofLCDZw8aEl+Ej3Tw==
+releaseDate: '2026-01-30T16:34:46.950Z'

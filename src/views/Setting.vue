@@ -74,7 +74,24 @@ const writeSetting = computed(() => {
 })
 
 
+
+const formatSize = (num: number) => {
+    if (num > 80) {
+        return 80
+    } else if (num < 80) {
+        return 10
+    }
+
+    return num
+}
+
 const save = async () => {
+    if (!(timeFontSize.value  && dataFontSize.value)) return
+
+    timeFontSize.value = formatSize(timeFontSize.value)
+    dataFontSize.value = formatSize(dataFontSize.value)
+
+
     const uiMsg = window.electronAPI.setConfig('', writeUiConfig.value)
     const setMsg = window.electronAPI.setSetting('', writeSetting.value)
 
@@ -146,7 +163,6 @@ const setResultPopup = async (content: string, color: boolean) => {
 
 
 const handleSave = (e: KeyboardEvent) => {
-
     if (e.ctrlKey && (e.key === 's' || e.key === 's' || e.code === 'KeyS')) {
         e.preventDefault()
         e.stopPropagation()

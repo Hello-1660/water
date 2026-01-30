@@ -335,7 +335,7 @@ async function initSize(path: string): Promise<[number, number] | null> {
 
 	const height = timeFontSize + dataFontSize + spacing * 2
 
-	return Promise.resolve([width , height])
+	return Promise.resolve([width + 100 , height])
 }
 
 
