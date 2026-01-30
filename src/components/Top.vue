@@ -38,7 +38,7 @@ window.addEventListener('resize', (e: Event) => {
         <div>
             <div class="title">
                 <img src="../../public/water.ico" alt="">
-                <span>待办事项</span>
+                <span></span>
             </div>
         </div>
 

@@ -116,6 +116,9 @@ const currentRouter = ref('todo')
     border-radius: 20px;
 }
 
+a:focus {
+    outline: none;
+}
 
 .container {
     display: flex;

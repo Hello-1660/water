@@ -51,7 +51,7 @@ const run = () => {
 
 const tag = () => {
     const temp = time.value
-    const id = logs.value.length
+    const id = logs.value.length + 1
     let updateTime
 
     if (logs.value.length === 0) {
