@@ -332,9 +332,10 @@ async function initSize(path: string): Promise<[number, number] | null> {
 	const spacing: number = 30
 
 	const width = Math.max((timeFontSize * TimeFontNumber + spacing), (dataFontSize * dataFontNumber + spacing))
+
 	const height = timeFontSize + dataFontSize + spacing * 2
 
-	return Promise.resolve([width / 2, height])
+	return Promise.resolve([width , height])
 }
 
 
