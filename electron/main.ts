@@ -273,6 +273,8 @@ app.on('activate', () => {
 	}
 })
 
+app.commandLine.appendSwitch('no-default-window')
+
 app.whenReady().then(async () => {
 	await createAppDataDir()
 	await createAppDataDir(TODODIR)
@@ -286,10 +288,12 @@ app.whenReady().then(async () => {
 
 	const setting = await readSetting(p)
 
-	app.setLoginItemSettings({
-		openAtLogin: !!setting?.setting.autostart,
-		openAsHidden: true
-	})
+	if (!isDev) {
+		app.setLoginItemSettings({
+			openAtLogin: !!setting?.setting.autostart,
+			openAsHidden: true
+		})
+	}
 
 	createNoteWindow()
 	if (setting?.setting?.showClock) {
