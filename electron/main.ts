@@ -335,7 +335,7 @@ async function initSize(path: string): Promise<[number, number] | null> {
 
 	const height = timeFontSize + dataFontSize + spacing * 2
 
-	return Promise.resolve([width + 100 , height])
+	return Promise.resolve([width + 100 , height + 50])
 }
 
 
@@ -489,12 +489,12 @@ async function initConfigFile() {
 {
   "mainConfig": {
     "time": {
-      "fontSize": 80,
+      "fontSize": 50,
       "fontColor": "#000000",
       "fontFamily": "Arial"
     },
     "date": {
-      "fontSize": 80,
+      "fontSize": 50,
       "fontColor": "#000000",
       "fontFamily": "Arial",
       "content": "Hello"

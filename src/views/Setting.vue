@@ -75,11 +75,11 @@ const writeSetting = computed(() => {
 
 
 
-const formatSize = (num: number) => {
-    if (num > 80) {
-        return 80
-    } else if (num < 80) {
-        return 10
+const formatSize = (num: number, max: number, min: number) => {
+    if (num > max) {
+        return max
+    } else if (num < min) {
+        return min
     }
 
     return num
@@ -88,8 +88,8 @@ const formatSize = (num: number) => {
 const save = async () => {
     if (!(timeFontSize.value  && dataFontSize.value)) return
 
-    timeFontSize.value = formatSize(timeFontSize.value)
-    dataFontSize.value = formatSize(dataFontSize.value)
+    timeFontSize.value = formatSize(timeFontSize.value, 150, 10)
+    dataFontSize.value = formatSize(dataFontSize.value, 80, 10)
 
 
     const uiMsg = window.electronAPI.setConfig('', writeUiConfig.value)

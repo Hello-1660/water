@@ -243,7 +243,7 @@ async function initSize(path2) {
   const spacing = 30;
   const width = Math.max(timeFontSize * TimeFontNumber + spacing, dataFontSize * dataFontNumber + spacing);
   const height = timeFontSize + dataFontSize + spacing * 2;
-  return Promise.resolve([width + 100, height]);
+  return Promise.resolve([width + 100, height + 50]);
 }
 async function readConfig(path2) {
   try {
@@ -350,12 +350,12 @@ async function initConfigFile() {
 {
   "mainConfig": {
     "time": {
-      "fontSize": 80,
+      "fontSize": 50,
       "fontColor": "#000000",
       "fontFamily": "Arial"
     },
     "date": {
-      "fontSize": 80,
+      "fontSize": 50,
       "fontColor": "#000000",
       "fontFamily": "Arial",
       "content": "Hello"

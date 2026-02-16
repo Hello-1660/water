@@ -1,7 +1,7 @@
 {
   "mainConfig": {
     "time": {
-      "fontSize": 80,
+      "fontSize": 150,
       "fontColor": "#302121",
       "fontFamily": "Arial"
     },
@@ -12,8 +12,8 @@
       "content": "明天是复杂的漫游"
     },
     "position": {
-      "x": 966,
-      "y": 584
+      "x": 940,
+      "y": 531
     }
   }
 }
