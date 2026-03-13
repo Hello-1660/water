@@ -165,7 +165,7 @@ onMounted(() => {
 
                 <li  v-for="(tableName, index) in list" :key="index" @click="openTable(tableName.name)">
                     {{ tableName.name }}
-                </li>
+                </li>   
             </ul>
         </div>
 
@@ -288,7 +288,7 @@ onMounted(() => {
             />
         </div>
 
-        <div v-if="isShow === 3" >
+        <div v-if="isShow === 3" class="show-current-table">
             <TimeTableShow
             :name="currentTable"
             :html-content="htmlContent"
@@ -324,6 +324,7 @@ onMounted(() => {
     flex-wrap: wrap;
     justify-content: flex-start; 
     align-items: flex-start; 
+    align-content: flex-start;
     gap: 16px 20px;
     width: 100%;
     height: 100%;
@@ -335,7 +336,7 @@ onMounted(() => {
     display: flex;
     justify-content: center;
     align-items: center;
-    width: calc((100% - 3 * 30px) / 4);;
+    width: calc((100% - 3 * 30px) / 4);
     height: 20%;
     color: var(--light-font-color);
     font-size: 25px;
@@ -615,6 +616,11 @@ input[type="time"]::-webkit-datetime-edit-minute-field {
 }
 
 .show-table {
+    width: 100%;
+    height: 100%;
+}
+
+.show-current-table {
     width: 100%;
     height: 100%;
 }

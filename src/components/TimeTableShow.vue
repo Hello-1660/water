@@ -17,7 +17,8 @@ const handlePopupSure = () => {
 
 <template>
     <div class="time-class-show">
-        <Popup
+        <div class="time-class-head-show">
+            <Popup
         width="500px"
         height="250px"
         title="永久删除该表格"
@@ -43,7 +44,11 @@ const handlePopupSure = () => {
         <h1 class="title">
             {{prop.name}}
         </h1>
-        <div class="html-render-container" v-html="prop.htmlContent"></div>
+        </div>
+
+        <div class="html-render-container">
+            <div v-html="prop.htmlContent"></div>
+        </div>
     </div>
 </template>
 
@@ -58,6 +63,10 @@ const handlePopupSure = () => {
     width: 100%;
     height: 100%;
     padding: 40px;
+}
+
+.time-class-head-show {
+    height: 20%;
 }
 
 .popup-tip {
@@ -97,5 +106,10 @@ const handlePopupSure = () => {
     font-size: 40px;
     color: var(--light-font-color);
     margin-left: 225px;
+}
+
+.html-render-container {
+    height: 80%;
+    overflow-y: auto;
 }
 </style>
