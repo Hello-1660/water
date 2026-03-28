@@ -123,6 +123,7 @@ const currentRouter = ref('todo')
     --light-todo-editor-bgc: #f9f9f9;
     --light-active-router-bgc: linear-gradient(90deg, #5f5f5f 10%, #5f5f5f 10%, rgba(0, 0, 0, 0) 10%);
     --light-scrollbar-bgc: #ebebeb;
+    --light-caret-color: #3d4a6b;
 }
 
 

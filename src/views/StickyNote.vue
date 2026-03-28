@@ -7,9 +7,9 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 
 
 const DATADIR = 'data'
-const TEXT = 'txt'
+// const TEXT = 'txt'
 const HTML = 'html'
-const JSON = 'json'
+// const JSON = 'json'
 const SELECTWIDTHSIZE = 0.25
 
 const theme = ref('light')
@@ -52,31 +52,31 @@ const updateTheme = (value: boolean) => {
     }
 }
 
-const handleSave = (save: any) => {
-    if (save.msg === 'success') {
-        let saveData = ''
-        if (currentFile.value.type === HTML) {
-            saveData = save.data.html
-        } else if (currentFile.value.type === JSON) { 
-            saveData = save.data.json
-        } else if (currentFile.value.type === TEXT) { 
-            saveData = save.data.text
-        } else { 
-            saveData = save.data.text
-        }
+// const handleSave = (save: any) => {
+//     if (save.msg === 'success') {
+//         let saveData = ''
+//         if (currentFile.value.type === HTML) {
+//             saveData = save.data.html
+//         } else if (currentFile.value.type === JSON) { 
+//             saveData = save.data.json
+//         } else if (currentFile.value.type === TEXT) { 
+//             saveData = save.data.text
+//         } else { 
+//             saveData = save.data.text
+//         }
 
-        fileData.value.content = saveData
-        if (currentFile.value.name !== '') {
-            saveFile(currentFile.value.name, currentFile.value.type, (data: boolean) => {
-                const msg = data ? '保存成功' : '保存失败'
-                setResultPopup(msg, data)
-            })
-            return 
-        }
+//         fileData.value.content = saveData
+//         if (currentFile.value.name !== '') {
+//             saveFile(currentFile.value.name, currentFile.value.type, (data: boolean) => {
+//                 const msg = data ? '保存成功' : '保存失败'
+//                 setResultPopup(msg, data)
+//             })
+//             return 
+//         }
 
-        isShowSavePopup.value = true
-    }
-}
+//         isShowSavePopup.value = true
+//     }
+// }
 
 
 const saveFile = (name: string, type: string, func: Function) => {
@@ -359,8 +359,12 @@ const setResultPopup = async (content: string, color: boolean) => {
                 </svg>
             </div>
         </div>
-        <div id="editor" ref="editor">
+        <!-- <div id="editor" ref="editor">
             <TextEditor :theme="theme" :file-data="fileData" @save="handleSave" />
+        </div> -->
+
+        <div id="editor"> 
+            <TextEditor />
         </div>
     </div>
 </template>

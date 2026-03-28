@@ -1,313 +1,113 @@
 <script setup lang="ts">
-import { EditorContent, useEditor } from '@tiptap/vue-3'
-import StarterKit from '@tiptap/starter-kit'
-import { ref, onMounted, watch } from 'vue'
-import { Extension } from '@tiptap/core'
-import CodeBlock from '@tiptap/extension-code-block'
-
+import { ref } from 'vue'
 
 const fontSize = ref(30)
-const lastKey = ref<string | null>(null)
-const INDENT = '    '
-
-const props = defineProps({
-    theme: {
-        type: String,
-        default: 'light'
-    },
-    fileData: {
-        type: Object as () => {
-            content?: string,
-            type?: string
-        },
-        default: () => ({ content: '', type: 'html' })
-    }
-})
-
-const emit = defineEmits(['save'])
 
 
+const editor = ref<null | HTMLDivElement>(null)
 
-const theme = ref({
-    light: {
-        backGround: '#fff',
-        color: '#000',
-        caretColor: '#000',
-        selectionBackground: '#cddefb',
-    },
-    dark: {
-        backGround: '#27273a',
-        color: '#fff',
-        caretColor: '#fff',
-        selectionBackground: '#4a6fa5',
-    }
-})
+/**
+ * 粘贴事件
+ * @param e 
+ */
+const handlePaste = (e: ClipboardEvent) => {
+  e.preventDefault()
 
+  const clipboardDate = e.clipboardData
+  if (!clipboardDate) return
 
-const activeTheme = ref(props.theme)
+  const text = clipboardDate.getData('text/plain')
+  const files = clipboardDate.files
 
-
-watch(
-    () => props.theme,
-    (newTheme) => {
-        activeTheme.value = newTheme
-    },
-    { immediate: true }
-)
-
-
-const basicEditor = ref<HTMLDivElement | undefined>()
-const editorVar = ref<InstanceType<typeof EditorContent> | undefined>()
-
-const updateFontSizeCssVar = () => {
-    if (!basicEditor.value) return  
-    basicEditor.value.style.setProperty('--editor-font-size', `${fontSize.value}px`)
-}
-
-const updateThemeCssVars = () => {
-    const current = activeTheme.value === 'light' ? theme.value.light : theme.value.dark
-    // document.documentElement.style.setProperty('--editor-color', current.color)
-    // document.documentElement.style.setProperty('--editor-caret-color', current.caretColor)
+  if (files.length) {
+    console.log('files', files)
+    handleInputFiles(files)
     
-    if (basicEditor.value) {
-        if (activeTheme.value === 'light') {
-            basicEditor.value.classList.remove('dark')
-        } else {
-            basicEditor.value.classList.add('dark')
-        }
-    }
-    
-    if (editorVar.value) {
-        if (activeTheme.value === 'light') {
-            editorVar.value.$el.classList.remove('dark')
-        } else {
-            editorVar.value.$el.classList.add('dark')
-        }
-        
-        editorVar.value.$el.documentElement.style.setProperty('--editor-selection-bg', current.selectionBackground)  
-        editorVar.value.$el.documentElement.style.setProperty('--editor-bg', current.backGround)
-    }
+  } else if (text) {
+    console.log('text', text)
+    handleInputText(text)
+  }
 }
 
-onMounted(() => {
-    updateThemeCssVars()
-    updateFontSizeCssVar()
-})
+/**
+ * 调整字体大小
+ * @param e ctrl 
+ */
+const handleKeydown = (e: KeyboardEvent) => {
+  const key = e.code
 
+  if (e.ctrlKey && (key === 'Equal' || key === 'NumpadAdd')) {
+    e.preventDefault()
+    fontSize.value += 5
+  }
 
-watch([theme, activeTheme], updateThemeCssVars, { deep: true })
-
-watch(
-    () => props.fileData,
-    (newFileData) => {
-        if (newFileData) {
-            setEditorContent(newFileData)
-        }
-    },
-    { deep: true }
-)
-
-const TabBackspaceSmart = Extension.create({
-    name: 'tabBackspaceSmart',
-
-    addKeyboardShortcuts() {
-        return {
-            'Alt-=': () => {
-                fontSize.value += 2
-                updateFontSizeCssVar()
-                return true
-            },
-            'Alt--': () => {
-                fontSize.value = Math.max(12, fontSize.value - 2)
-                updateFontSizeCssVar()
-                return true
-            },
-
-            Tab: () => {
-                lastKey.value = 'Tab'
-                return this.editor.commands.insertContent(INDENT)
-            },
-
-            Backspace: () => {
-                const { selection, doc } = this.editor.state
-                const { from, empty } = selection
-                if (!empty) return false
-
-                const textBefore = doc.textBetween(from - INDENT.length, from)
-
-                if (textBefore === INDENT) {
-                    return this.editor.commands.deleteRange({ from: from - INDENT.length, to: from })
-                }
-
-                return false
-            },
-
-            Enter: () => {
-                const { state } = this.editor
-                const { selection } = state
-                const { $from } = selection
-                const doc = state.doc
-
-                const isAtDocEnd = $from.pos >= doc.content.size - 1
-                const lineStart = $from.start()
-                const lineText = state.doc.textBetween(lineStart, $from.pos)
-
-                const indentMatch = lineText.match(/^[\s\u00A0]+/)
-                const indent = indentMatch ? indentMatch[0] : ''
-
-                if (this.editor.isActive('codeBlock')) {
-                    return this.editor.commands.insertContent('\n' + indent)
-                }
-
-                if (isAtDocEnd) {
-                    return this.editor.commands.insertContent('\n')
-                } else {
-                    return this.editor.chain()
-                        .splitBlock()
-                        .insertContent(indent)
-                        .run()
-                }
-            },
-
-            'Mod+S': () => {
-                console.log('save')
-                handleSave() 
-                return true 
-            }
-        }
+  else if (e.ctrlKey && (key === 'Minus' || key === 'NumpadSubtract')) {
+    e.preventDefault()
+    if (fontSize.value >= 20) {
+      fontSize.value -= 5
     }
-})
+  }
 
-
-const setEditorContent = (fileData: { content?: string; type?: string }) => {
-    if (editor.value && fileData.content === '') {
-        editor.value.commands.setContent('')
-    }
-
-    if (!editor.value || !fileData?.content) return
-    const { content, type = 'html' } = fileData
-
-    try {
-        let finalContent = ''
-        if (type === 'json') {
-            const parsedJson = JSON.parse(content)
-            finalContent = JSON.stringify(parsedJson, null, 2)
-        } else {
-            finalContent = content
-        }
-
-        editor.value.commands.setContent(finalContent, {
-            parseOptions: { preserveWhitespace: 'full' },
-            emitUpdate: false
-        })
-    } catch (error) {
-        editor.value.commands.setContent('')
-    }
-}
-
-const getEditorContent = () => {
-    if (!editor.value) return { html: '', text: '', json: '' }
-    return {
-        html: editor.value.getHTML(), 
-        text: editor.value.getText(), 
-        json: JSON.stringify(editor.value.getJSON()) 
-    }
-}
-
-const handleSave = () => {
-    try {
-        const content = getEditorContent()
-        
-        emit('save', {
-            msg : 'success',
-            data: content
-        })
-    } catch (error) {
-        emit('save', {
-            msg : 'error',
-            data: ''
-        })
-    }
+  else if (e.ctrlKey && (key === 'Digit0' || key === 'Numpad0')) {
+    e.preventDefault()
+    fontSize.value = 30
+  }
 }
 
 
-const editor = useEditor({
-    extensions: [
-        StarterKit.configure({
-            codeBlock: false
-        }),
-        CodeBlock,
-        TabBackspaceSmart
-    ],
-    content: '',
-    editorProps: {
-        handleKeyDown: (view, event) => {
-            view 
-            // 这里可以监听全局按键
-            if ((event.ctrlKey || event.metaKey) && event.key === 's') {
-                event.preventDefault()
-                handleSave()
-                return true
-            }
-        }
-    },
-    onCreate: () => {
-        if (props.fileData && props.fileData.content) {
-            setEditorContent(props.fileData)
-        }
+const handleInputFiles = (files: FileList) => {
+  if (editor.value && files) {
+    for (const file of files) {
+      const img = new Image()
+      img.style = 'max-width: 500px; max-height: 500px; margin: 5px'
+      img.src = URL.createObjectURL(file)
+      editor.value.appendChild(img)
     }
-})
+  } 
+}
 
-
-
-
-
+const handleInputText = (test: string) => {
+  if (editor.value) {
+    editor.value.innerHTML += test
+  } 
+}
 </script>
 
 <template>
-    <div class="basic-editor" ref="basicEditor">
-        <editor-content :editor="editor" ref="editorVal"/>
-    </div>
+  <div class="editor-container">  
+    <div  
+    :style="{ fontSize: fontSize + 'px' }"  
+    contenteditable="true" 
+    @paste="handlePaste"
+    @keydown="handleKeydown"
+    ref="editor"
+    id="editor"></div>
+  </div>
 </template>
 
 <style scoped>
-.basic-editor {
-    --editor-font-size: 30px;
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  .editor-container {
+    width: 100%;
     height: 100%;
-    min-height: 0;
-    background-color: fff;
-    overflow-x: hidden;
-    overflow-y: auto;
-}
+  }
 
-
-.dark {
-    background-color: #27273a;
-    color: #fff;
-    caret-color: #fff;
-}
-
-
-:global(.tiptap) {
-    --editor-selection-bg: #cddefb;
-    min-height: 100%;
-    padding: 12px 14px;
+  #editor {
+    width: 100%;
+    height: 100%;
+    padding: 5px;
+    overflow: auto;
     outline: none;
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow-wrap: anywhere;
-    font-family: 'Consolas', 'Microsoft YaHei', 'Courier New', monospace;
-    letter-spacing: 0.5px;
-    line-height: 1.6;
-    font-size: var(--editor-font-size) !important;
-}
+    caret-color: var(--light-caret-color);
+  }
 
-
-:global(.tiptap section) {
-    background-color: inherit !important;
-}
-
-:global(.tiptap ::selection) {
-    background: var(--editor-selection-bg) !important;
-}
+  #editor::selection {
+    background-color: #3d4a6b;
+    color: aliceblue;
+  }
 </style>

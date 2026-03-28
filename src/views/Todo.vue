@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import TodoList from '../components/TodoList.vue'
-import TodoEditor from '../components/TodoEditor.vue'
-import { ref, nextTick } from 'vue'
+// import TodoEditor from '../components/TodoEditor.vue'
+import { ref, /* nextTick */ } from 'vue'
 
 interface Todo {
     name: string,
@@ -19,22 +19,22 @@ const handleOpenTodo = (data: Todo) => {
 
 const todoList = ref<InstanceType<typeof TodoList> | null>(null)
 
-const handleSaveTodo = (data: boolean) => {
-    if (data) {
-        const msg = data ? '保存成功' : '保存失败'
-        setResultPopup(msg, data)
-        todoList.value?.getTodoList()
-    }
-}
+// const handleSaveTodo = (data: boolean) => {
+//     if (data) {
+//         const msg = data ? '保存成功' : '保存失败'
+//         setResultPopup(msg, data)
+//         todoList.value?.getTodoList()
+//     }
+// }
 
 
-const handelDelTodo = (data: boolean) => {
-    if (data) {
-        const msg = data ? '删除成功' : '删除失败'
-        setResultPopup(msg, data)
-        todoList.value?.getTodoList()
-    }
-}
+// const handelDelTodo = (data: boolean) => {
+//     if (data) {
+//         const msg = data ? '删除成功' : '删除失败'
+//         setResultPopup(msg, data)
+//         todoList.value?.getTodoList()
+//     }
+// }
 
 
 const resultColor = ref(false)
@@ -42,19 +42,19 @@ const isShowResultPopup = ref(false)
 const resultPopupContent = ref('')
 
 
-const setResultPopup = async (content: string, color: boolean) => {
-    isShowResultPopup.value = false
+// const setResultPopup = async (content: string, color: boolean) => {
+//     isShowResultPopup.value = false
 
-    resultPopupContent.value = content
-    resultColor.value = color
+//     resultPopupContent.value = content
+//     resultColor.value = color
 
-    await nextTick()
+//     await nextTick()
 
-    isShowResultPopup.value = true
-    setTimeout(() => {
-        isShowResultPopup.value = false;
-    }, 2500)
-}
+//     isShowResultPopup.value = true
+//     setTimeout(() => {
+//         isShowResultPopup.value = false;
+//     }, 2500)
+// }
 </script>
 
 
@@ -72,12 +72,15 @@ const setResultPopup = async (content: string, color: boolean) => {
                 />
             </div>
 
-            <div class="main-control">
+            <!-- <div class="main-control">
                 <TodoEditor 
                 :todo="currentTodo"
                 @save-todo="handleSaveTodo"
                 @delete-todo="handelDelTodo"
                 />
+            </div> -->
+            <div>
+                
             </div>
          </div>
     </div>
