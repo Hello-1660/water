@@ -18,6 +18,16 @@
     "package.json",
   ],
 
+  publish: [
+    {
+      provider: "github",
+      owner: "Hello-1660",
+      repo: "water",
+      private: false,
+      releaseType: "release"
+    }
+  ],
+
   win: {
     icon: "public/icon.ico",
     target: [
@@ -26,7 +36,8 @@
         arch: ["x64"]
       }
     ],
-    artifactName: "${productName}-Windows-${version}-Setup.${ext}"
+    artifactName: "${productName}-Windows-${version}-Setup.${ext}",
+    requestedExecutionLevel: "highestAvailable"
   },
 
   nsis: {

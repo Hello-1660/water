@@ -46,9 +46,9 @@ const isBeginSearchContent = ref<string>('')
 const resort = () => {
     setTimeout(() => {
         if (!isBeginSearch.value) return 
-        
+
         findValue.value = isBeginSearchContent.value
-    }, 100) 
+    }, 200) 
 }
 
 const search = () => {
@@ -187,9 +187,12 @@ watch(
     }
 )
 
-const handleLiClick = (value: SelectValue) => { 
+const handleLiClick = (value: SelectValue, num: number) => { 
+    console.log('num', num)
+    console.log('data', value)
     isBeginSearch.value = false
     emit('data', value)
+
     findValue.value = value.name
     isShow.value = false
 }
@@ -215,13 +218,13 @@ const close = (e: MouseEvent) => {
 
                 <div v-show="!isSearch" class="select-list" :id="isShow ? 'up' : ''">
                     <ul class="list">
-                        <li v-for="(value, index) in selectList" :key="index"  @click="handleLiClick(value)">{{ value.name + '.' + value.type }}</li>
+                        <li v-for="(value, index) in selectList" :key="index"  @click="handleLiClick(value, 1)">{{ value.name + '.' + value.type }}</li>
                     </ul>
                 </div>
 
                 <div v-show="isSearch" class="select-list" :id="isShow ? 'up' : ''">
                     <ul class="list">
-                        <li v-for="(value, index) in searchList" :key="index"  @click="handleLiClick(value)">{{ value.name + '.' + value.type }}</li>
+                        <li v-for="(value, index) in searchList" :key="index"  @click="handleLiClick(value, 2)">{{ value.name + '.' + value.type }}</li>
                     </ul>
                 </div>
 

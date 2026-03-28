@@ -299,6 +299,9 @@ app.whenReady().then(async () => {
 	if (setting?.setting?.showClock) {
 		createWindow()
 		noteWin?.hide()
+
+		// 添加静默检查
+		
 	}
 })
 
