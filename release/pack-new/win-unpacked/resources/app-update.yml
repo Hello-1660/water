@@ -1,0 +1,6 @@
+owner: Hello-1660
+repo: water
+provider: github
+private: false
+releaseType: release
+updaterCacheDirName: water-updater
