@@ -4,10 +4,12 @@ import { onMounted, ref } from 'vue'
 const TODODIR = 'todo'
 const isShowTodoItemStatic = ref(false)
 
-interface Todo {
+export interface Todo {
     name: string
     content: string
     endTime: string
+    /** 磁盘扩展名，如 html / txt，新建默认可为 html */
+    ext: string
 }
 
 interface File {
@@ -23,8 +25,20 @@ const formatFile = (data: string) => {
 
     return {
         time,
-        content
+        content,
     }
+}
+
+/** 列表摘要：HTML 内容取纯文本，避免整段标签撑满一行 */
+function listPreview(raw: string, max = 72) {
+    const s = raw.trim()
+    if (!s) return ''
+    if (!/[<>]/.test(s)) return s.length > max ? `${s.slice(0, max)}…` : s
+    const el = document.createElement('div')
+    el.innerHTML = s
+    const t = (el.textContent || '').replace(/\s+/g, ' ').trim()
+    if (!t) return '（富文本）'
+    return t.length > max ? `${t.slice(0, max)}…` : t
 }
 
 const todoList = ref<Todo[]>([])
@@ -90,10 +104,14 @@ const getTodoListMsg = async () => {
         const data = formatFile(content)
 
 
+        const ext = item.type || 'html'
+        if (ext !== 'html') continue
+
         todoList.value.push({
             name: item.name,
             content: data.content,
-            endTime: data.time
+            endTime: data.time,
+            ext: 'html',
         })
     }
 
@@ -124,7 +142,7 @@ onMounted(() => {
 })
 
 
-const emit = defineEmits(['openTodo'])
+const emit = defineEmits<{ openTodo: [todo: Todo] }>()
 const openTodo = (content: Todo) => {
     emit('openTodo', content)
 }
@@ -133,7 +151,8 @@ const addTodo = () => {
     emit('openTodo', {
         name: '',
         content: '',
-        endTime: ''
+        endTime: '',
+        ext: 'html',
     })
 }
 
@@ -164,7 +183,7 @@ window.addEventListener('resize', () => {
                 <div class="list-item" v-for="item in todoList" :key="item.name" @click="openTodo(item)">
                     <div class="point"></div>
                     <div class="content" :class="{ delete: remainTime(formatTime(item.name, item.endTime)) === '已结束' }">
-                        {{ item.content }}
+                        {{ listPreview(item.content) }}
                     </div>
 
                     <div class="static" v-show="isShowTodoItemStatic">
