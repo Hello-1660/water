@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated, nextTick, watch } from 'vue'
 
 defineProps({
     model: {
@@ -98,115 +98,182 @@ const isShowStopwatchSetting = ref(true)
 
 
 const isRunStop = ref(false)
-const runTimeNum = ref(0)
+/** 剩余秒数（小数），由 rAF 按墙钟时间更新，圆环连续变化 */
+const runTimeNumFloat = ref(0)
+/** 用户在设置里填写的总秒数 T；数字倒计时跑满 T 秒，圆环进度比时间少「视觉上的 1 秒」（提前一圈收完） */
+const countdownTotal = ref(0)
+/** 倒计时结束时刻（ms），暂停时置 null 并把剩余记在 pausedRemainMs */
+const countdownDeadlineMs = ref<number | null>(null)
+const pausedRemainMs = ref(0)
+const pathLengthPx = ref(0)
 const isShowRunBtn = ref(true)
-const mainRoundP = ref<SVGCircleElement | null> (null)
-const runTime = computed(() => { 
-    const totalSeconds = Math.floor(runTimeNum.value); 
-    const hour = Math.floor(totalSeconds / 3600); 
-    const minute = Math.floor((totalSeconds % 3600) / 60); 
-    const second = Math.floor(totalSeconds % 60); 
+const mainRoundP = ref<SVGCircleElement | null>(null)
+
+const runTime = computed(() => {
+    const totalSeconds = Math.max(0, Math.floor(runTimeNumFloat.value + 1e-6))
+    const hour = Math.floor(totalSeconds / 3600)
+    const minute = Math.floor((totalSeconds % 3600) / 60)
+    const second = Math.floor(totalSeconds % 60)
 
     return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:${second.toString().padStart(2, '0')}`
 })
 
+let rafId = 0
 
-let runTimeInterval: NodeJS.Timeout | null = null 
-
-const updateRunTime = () => {
-    runTimeNum.value -= 1
-
-    if (runTimeNum.value <= 0) {
-        closeRunTime()
-        mainRoundActiveStop()
-        return
-    }
+function stopTickLoop() {
+    if (rafId) cancelAnimationFrame(rafId)
+    rafId = 0
 }
 
+function tickLoop() {
+    const deadline = countdownDeadlineMs.value
+    if (deadline == null || isRunStop.value) {
+        return
+    }
+    const now = Date.now()
+    const remSec = Math.max(0, (deadline - now) / 1000)
+    runTimeNumFloat.value = remSec
 
-const closeRunTime = () => { 
-    clearInterval(runTimeInterval as NodeJS.Timeout)
-    runTimeInterval = null
+    if (remSec <= 0) {
+        runTimeNumFloat.value = 0
+        closeRunTime()
+        return
+    }
+
+    rafId = requestAnimationFrame(tickLoop)
+}
+
+function startTickLoop() {
+    stopTickLoop()
+    rafId = requestAnimationFrame(tickLoop)
+}
+
+const closeRunTime = () => {
+    stopTickLoop()
+    countdownDeadlineMs.value = null
     isRunStop.value = true
 }
 
 
-const endRunTime = () => { 
+const endRunTime = () => {
     closeRunTime()
     isShowStopwatchSetting.value = true
     isRunStop.value = false
+    countdownTotal.value = 0
+    pathLengthPx.value = 0
+    pausedRemainMs.value = 0
+    runTimeNumFloat.value = 0
 }
 
 const stopRunTime = () => {
     if (isRunStop.value) {
-        if (runTimeNum.value <= 0) return 
+        if (runTimeNumFloat.value <= 0) return
 
         isRunStop.value = false
-        updateRunTime()
-        runTimeInterval = setInterval(updateRunTime, 1000)
-
-        mainRoundActiveRunning()
-    } else {            
+        countdownDeadlineMs.value = Date.now() + pausedRemainMs.value
+        startTickLoop()
+    } else {
         isRunStop.value = true
-        clearInterval(runTimeInterval as NodeJS.Timeout)
-        runTimeInterval = null
-        mainRoundActiveStop()
+        if (countdownDeadlineMs.value != null) {
+            pausedRemainMs.value = Math.max(0, countdownDeadlineMs.value - Date.now())
+            runTimeNumFloat.value = pausedRemainMs.value / 1000
+        }
+        stopTickLoop()
     }
 }
 
-
-
-const mainRoundPActive = (len: string, time: number) => {
-    if (!mainRoundP.value) return
-
-    mainRoundP.value.style.setProperty('--l', `${mainRoundP.value.getTotalLength()}`)
-    mainRoundP.value.style.setProperty('--len', len)
-    mainRoundP.value.style.setProperty('--t', `${time}s`)
-
-    mainRoundP.value.classList.add('svg-active')
-}
-
-
-const mainRoundActiveStop = () => {
-    if (!mainRoundP.value) return
-    mainRoundP.value.classList.add('svg-paused')
-}
-
-
-const mainRoundActiveRunning = () => {
-    if (!mainRoundP.value) return  
-
-    mainRoundP.value.classList.remove('svg-paused')
-}
-
-
-const stopwatchBegin = () => {
-    if (formatTimeNum.value <= 0) return  
-
-    runTimeNum.value = formatTimeNum.value
-    updateRunTime()
-    runTimeInterval = setInterval(updateRunTime, 1000)
-    isShowStopwatchSetting.value = false
-
+function syncPathLength() {
     nextTick(() => {
-        if (!mainRoundP.value) return 
-        mainRoundPActive(mainRoundP.value.getTotalLength() + '', runTimeNum.value)
+        if (mainRoundP.value) pathLengthPx.value = mainRoundP.value.getTotalLength()
     })
 }
 
-
-window.addEventListener('resize', () => {
-    const width = document.documentElement.clientWidth
-
-    if (isShowStopwatchSetting) {
-        width > 1400 ? isShowRunBtn.value = true : isShowRunBtn.value = false
+/**
+ * 圆环：在剩余时间还剩 1 秒时已走完（比数字早「一圈」约 1 秒），避免原先动画偏长；
+ * 数字仍按 runTimeNumFloat 跑满 T 秒。
+ */
+const circleStrokeStyle = computed(() => {
+    if (isShowStopwatchSetting.value || countdownTotal.value <= 0) return {}
+    const L = pathLengthPx.value
+    if (L <= 0) return {}
+    const T = countdownTotal.value
+    const rem = Math.max(0, runTimeNumFloat.value)
+    let ratio: number
+    if (T <= 1) {
+        ratio = rem / T
+    } else {
+        const ringRem = Math.max(0, rem - 1)
+        ratio = ringRem / (T - 1)
+    }
+    return {
+        strokeDasharray: L,
+        strokeDashoffset: ratio * L,
     }
 })
 
-
-onMounted(() => { 
-    document.documentElement.clientWidth > 1400 ? isShowRunBtn.value = true : isShowRunBtn.value = false
+watch(isShowStopwatchSetting, (showSetting) => {
+    if (!showSetting && countdownTotal.value > 0) syncPathLength()
 })
+
+const stopwatchBegin = () => {
+    const T = formatTimeNum.value
+    if (T <= 0) return
+
+    stopTickLoop()
+    countdownTotal.value = T
+    const totalMs = T * 1000
+    countdownDeadlineMs.value = Date.now() + totalMs
+    pausedRemainMs.value = totalMs
+    runTimeNumFloat.value = T
+    isRunStop.value = false
+    isShowStopwatchSetting.value = false
+
+    syncPathLength()
+    startTickLoop()
+}
+
+function onWindowResize() {
+    const width = document.documentElement.clientWidth
+    if (isShowStopwatchSetting.value) {
+        width > 1400 ? (isShowRunBtn.value = true) : (isShowRunBtn.value = false)
+    } else {
+        syncPathLength()
+        width > 1400 ? (isShowRunBtn.value = true) : (isShowRunBtn.value = false)
+    }
+}
+
+onMounted(() => {
+    document.documentElement.clientWidth > 1400 ? (isShowRunBtn.value = true) : (isShowRunBtn.value = false)
+    window.addEventListener('resize', onWindowResize)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('resize', onWindowResize)
+    document.removeEventListener('visibilitychange', onVisibilityChange)
+    stopTickLoop()
+})
+
+onActivated(() => {
+    if (!isShowStopwatchSetting.value && countdownTotal.value > 0) {
+        syncPathLength()
+        // 切回页面后 rAF 可能停过，正在计时时补一轮
+        if (!isRunStop.value && countdownDeadlineMs.value != null) {
+            startTickLoop()
+        }
+    }
+})
+
+function onVisibilityChange() {
+    if (document.visibilityState !== 'visible') return
+    if (
+        !isShowStopwatchSetting.value &&
+        !isRunStop.value &&
+        countdownDeadlineMs.value != null
+    ) {
+        startTickLoop()
+    }
+}
 </script>
 
 
@@ -235,7 +302,15 @@ onMounted(() => {
                 <div class="stopwatch-work-main">
                     <div class="main-round">
                         <svg> 
-                            <circle ref="mainRoundP" class="main-round-p" cx="50%" cy="50%" r="365" fill="none"></circle>
+                            <circle
+                                ref="mainRoundP"
+                                class="main-round-p"
+                                cx="50%"
+                                cy="50%"
+                                r="365"
+                                fill="none"
+                                :style="circleStrokeStyle"
+                            ></circle>
                         </svg>
                         <div class="main-round-time">
                             {{ runTime }} 
@@ -402,32 +477,11 @@ input[type="number"]:focus {
     height: 100%;
 }
 
-.main-round>svg>.main-round-p { 
-    --l: 0;
-    --len: 0;
-    --t: 0s;
-    stroke:rgb(68, 143, 255);
+.main-round>svg>.main-round-p {
+    stroke: rgb(68, 143, 255);
     stroke-width: 6;
     transform: rotate(-90deg);
     transform-origin: 375px 375px;
-}
-
-.svg-active {
-    stroke-dasharray: var(--l);
-    stroke-dashoffset: var(--len);
-    animation: active var(--t) linear forwards;
-    animation-play-state: running;
-}
-
-.svg-paused {
-    animation-play-state: paused;
-}
-
-
-@keyframes active {
-    to {
-        stroke-dashoffset: 0;
-    }
 }
 
 .main-round>.main-round-time { 
