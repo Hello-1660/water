@@ -43,5 +43,39 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
   // 便签：选择单个文件（返回目录用于作为工作区）
   pickFileToOpen: () => electron.ipcRenderer.invoke("dialog:open-file"),
   stickyGetLastWorkspace: () => electron.ipcRenderer.invoke("sticky:get-last-workspace"),
-  stickySetLastWorkspace: (folder) => electron.ipcRenderer.invoke("sticky:set-last-workspace", folder)
+  stickySetLastWorkspace: (folder) => electron.ipcRenderer.invoke("sticky:set-last-workspace", folder),
+  getPackagedInfo: () => electron.ipcRenderer.invoke("app:get-packaged-info"),
+  updaterDownload: () => electron.ipcRenderer.invoke("updater:download"),
+  updaterQuitAndInstall: () => electron.ipcRenderer.invoke("updater:quit-and-install"),
+  updaterCheckNow: () => electron.ipcRenderer.invoke("updater:check-now"),
+  updaterOnUpdateAvailable: (cb) => {
+    const ch = "updater:update-available";
+    const fn = (_e, p) => cb(p);
+    electron.ipcRenderer.on(ch, fn);
+    return () => electron.ipcRenderer.removeListener(ch, fn);
+  },
+  updaterOnDownloadProgress: (cb) => {
+    const ch = "updater:download-progress";
+    const fn = (_e, p) => cb(p);
+    electron.ipcRenderer.on(ch, fn);
+    return () => electron.ipcRenderer.removeListener(ch, fn);
+  },
+  updaterOnUpdateDownloaded: (cb) => {
+    const ch = "updater:update-downloaded";
+    const fn = (_e, p) => cb(p);
+    electron.ipcRenderer.on(ch, fn);
+    return () => electron.ipcRenderer.removeListener(ch, fn);
+  },
+  updaterOnError: (cb) => {
+    const ch = "updater:error";
+    const fn = (_e, p) => cb(p);
+    electron.ipcRenderer.on(ch, fn);
+    return () => electron.ipcRenderer.removeListener(ch, fn);
+  },
+  updaterOnUpdateNotAvailable: (cb) => {
+    const ch = "updater:update-not-available";
+    const fn = () => cb();
+    electron.ipcRenderer.on(ch, fn);
+    return () => electron.ipcRenderer.removeListener(ch, fn);
+  }
 });

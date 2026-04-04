@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Top from './components/Top.vue'
 import TimingFloatPanel from './components/TimingFloatPanel.vue'
+import UpdatePrompt from './components/UpdatePrompt.vue'
 import { useSettingStore } from './stores/settingStore'
 import { useUiConfigStore } from './stores/uiConfigStore'
 import { onMounted, computed } from 'vue'
@@ -123,6 +124,7 @@ const currentRouter = computed(() => {
             </div>
         </div>
         <TimingFloatPanel />
+        <UpdatePrompt />
     </div>
 </template>
 

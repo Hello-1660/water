@@ -16,7 +16,8 @@ export const useSettingStore = defineStore('setting', {
                     setting: {
                         autostart: false,
                         dark: false,
-                        showClock: true
+                        showClock: true,
+                        checkForUpdates: false,
                     }
                 }
             } else {

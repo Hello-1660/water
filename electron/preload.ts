@@ -59,6 +59,44 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	stickyGetLastWorkspace: (): Promise<string | null> => ipcRenderer.invoke('sticky:get-last-workspace'),
 	stickySetLastWorkspace: (folder: string | null): Promise<void> =>
 		ipcRenderer.invoke('sticky:set-last-workspace', folder),
+
+	getPackagedInfo: (): Promise<{ isPackaged: boolean; version: string }> =>
+		ipcRenderer.invoke('app:get-packaged-info'),
+	updaterDownload: (): Promise<boolean> => ipcRenderer.invoke('updater:download'),
+	updaterQuitAndInstall: (): Promise<void> => ipcRenderer.invoke('updater:quit-and-install'),
+	updaterCheckNow: (): Promise<{ ok: true } | { ok: false; reason: string }> =>
+		ipcRenderer.invoke('updater:check-now'),
+	updaterOnUpdateAvailable: (cb: (p: { version: string; releaseNotes?: string | string[] | null }) => void) => {
+		const ch = 'updater:update-available'
+		const fn = (_e: unknown, p: unknown) =>
+			cb(p as { version: string; releaseNotes?: string | string[] | null })
+		ipcRenderer.on(ch, fn)
+		return () => ipcRenderer.removeListener(ch, fn)
+	},
+	updaterOnDownloadProgress: (cb: (p: { percent: number }) => void) => {
+		const ch = 'updater:download-progress'
+		const fn = (_e: unknown, p: unknown) => cb(p as { percent: number })
+		ipcRenderer.on(ch, fn)
+		return () => ipcRenderer.removeListener(ch, fn)
+	},
+	updaterOnUpdateDownloaded: (cb: (p: { version: string }) => void) => {
+		const ch = 'updater:update-downloaded'
+		const fn = (_e: unknown, p: unknown) => cb(p as { version: string })
+		ipcRenderer.on(ch, fn)
+		return () => ipcRenderer.removeListener(ch, fn)
+	},
+	updaterOnError: (cb: (p: { message: string }) => void) => {
+		const ch = 'updater:error'
+		const fn = (_e: unknown, p: unknown) => cb(p as { message: string })
+		ipcRenderer.on(ch, fn)
+		return () => ipcRenderer.removeListener(ch, fn)
+	},
+	updaterOnUpdateNotAvailable: (cb: () => void) => {
+		const ch = 'updater:update-not-available'
+		const fn = () => cb()
+		ipcRenderer.on(ch, fn)
+		return () => ipcRenderer.removeListener(ch, fn)
+	},
 })
 
 // 补充类型声明（避免Vue里报类型错误）
@@ -92,6 +130,17 @@ declare global {
 			} | null>
 			stickyGetLastWorkspace: () => Promise<string | null>
 			stickySetLastWorkspace: (folder: string | null) => Promise<void>
+			getPackagedInfo: () => Promise<{ isPackaged: boolean; version: string }>
+			updaterDownload: () => Promise<boolean>
+			updaterQuitAndInstall: () => Promise<void>
+			updaterCheckNow: () => Promise<{ ok: true } | { ok: false; reason: string }>
+			updaterOnUpdateAvailable: (
+				cb: (p: { version: string; releaseNotes?: string | string[] | null }) => void
+			) => () => void
+			updaterOnDownloadProgress: (cb: (p: { percent: number }) => void) => () => void
+			updaterOnUpdateDownloaded: (cb: (p: { version: string }) => void) => () => void
+			updaterOnError: (cb: (p: { message: string }) => void) => () => void
+			updaterOnUpdateNotAvailable: (cb: () => void) => () => void
 		}
 	}
 }

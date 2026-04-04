@@ -1,15 +1,15 @@
 {
   "mainConfig": {
     "time": {
-      "fontSize": 150,
-      "fontColor": "#302121",
+      "fontSize": 70,
+      "fontColor": "#ffffff",
       "fontFamily": "Arial"
     },
     "date": {
-      "fontSize": 80,
+      "fontSize": 70,
       "fontColor": "#ffffff",
       "fontFamily": "Arial",
-      "content": "明天是复杂的漫游"
+      "content": "Hello Water"
     },
     "position": {
       "x": 848,

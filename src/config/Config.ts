@@ -38,6 +38,8 @@ export interface Setting {
     autostart: boolean
     dark: boolean
     showClock: boolean
+    /** 是否在启动时检查 GitHub Release 更新（仅安装包有效） */
+    checkForUpdates: boolean
 }
 
 export class SettingConfig {

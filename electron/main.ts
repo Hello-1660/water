@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Tray, Menu, ipcMain, dialog, screen, globalShortcut } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import { execFileSync, spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { UIConfig, SettingConfig } from '../src/config/Config'
@@ -85,7 +86,58 @@ let noteWinSavedBounds: { x: number; y: number; width: number; height: number } 
 let noteWinFillsWorkArea = false
 let isStorage: boolean = false
 // 系统托盘
-let tray: Tray | null 
+let tray: Tray | null
+
+/** 是否在启动时向 GitHub 检查更新（来自 setting.json） */
+let updateCheckEnabled = false
+let autoUpdaterHooksAttached = false
+
+function attachAutoUpdaterBridge(): void {
+	if (autoUpdaterHooksAttached) return
+	autoUpdaterHooksAttached = true
+	autoUpdater.autoDownload = false
+	autoUpdater.autoInstallOnAppQuit = true
+
+	autoUpdater.on('update-available', (info) => {
+		if (!noteWin || noteWin.isDestroyed()) return
+		noteWin.webContents.send('updater:update-available', {
+			version: info.version,
+			releaseNotes: info.releaseNotes,
+		})
+	})
+
+	autoUpdater.on('update-not-available', () => {
+		if (!noteWin || noteWin.isDestroyed()) return
+		noteWin.webContents.send('updater:update-not-available')
+	})
+
+	autoUpdater.on('download-progress', (progress) => {
+		if (!noteWin || noteWin.isDestroyed()) return
+		noteWin.webContents.send('updater:download-progress', {
+			percent: progress.percent,
+		})
+	})
+
+	autoUpdater.on('update-downloaded', (info) => {
+		if (!noteWin || noteWin.isDestroyed()) return
+		noteWin.webContents.send('updater:update-downloaded', {
+			version: info.version,
+		})
+	})
+
+	autoUpdater.on('error', (err) => {
+		console.error('autoUpdater:', err)
+		if (!noteWin || noteWin.isDestroyed()) return
+		noteWin.webContents.send('updater:error', { message: err.message })
+	})
+}
+
+function scheduleUpdateCheckIfEnabled(): void {
+	if (!app.isPackaged || !updateCheckEnabled) return
+	setTimeout(() => {
+		autoUpdater.checkForUpdates().catch((e) => console.warn('checkForUpdates:', e))
+	}, 4500)
+}
 
 const gotTheLock = app.requestSingleInstanceLock()
 
@@ -360,8 +412,18 @@ async function createNoteWindow() {
 	})
 
 	ipcMain.handle('setting:set', async (_, p: string, config: SettingConfig) => {
-		if (!isDev) p = path.join(getInstallSiblingDir(), 'setting.json') 
-		return writeSetting(p, config)
+		if (!isDev) p = path.join(getInstallSiblingDir(), 'setting.json')
+		const ok = await writeSetting(p, config)
+		if (ok && app.isPackaged && config?.setting) {
+			const next = config.setting as { checkForUpdates?: boolean }
+			updateCheckEnabled = !!next.checkForUpdates
+			if (updateCheckEnabled) {
+				setTimeout(() => {
+					autoUpdater.checkForUpdates().catch(() => {})
+				}, 1200)
+			}
+		}
+		return ok
 	})
 
 
@@ -451,12 +513,48 @@ app.whenReady().then(async () => {
 
 	const setting = await readSetting(p)
 
+	const st = setting?.setting as { autostart?: boolean; checkForUpdates?: boolean } | undefined
+	updateCheckEnabled = !!(st && st.checkForUpdates)
+
+	if (app.isPackaged) {
+		attachAutoUpdaterBridge()
+		scheduleUpdateCheckIfEnabled()
+	}
+
 	if (!isDev) {
 		app.setLoginItemSettings({
 			openAtLogin: !!setting?.setting.autostart,
 			openAsHidden: true
 		})
 	}
+
+	ipcMain.removeHandler('updater:download')
+	ipcMain.removeHandler('updater:quit-and-install')
+	ipcMain.removeHandler('updater:check-now')
+	ipcMain.removeHandler('app:get-packaged-info')
+
+	ipcMain.handle('updater:download', async () => {
+		if (!app.isPackaged) return false
+		await autoUpdater.downloadUpdate()
+		return true
+	})
+
+	ipcMain.handle('updater:quit-and-install', () => {
+		if (!app.isPackaged) return Promise.resolve()
+		autoUpdater.quitAndInstall(false, true)
+		return Promise.resolve()
+	})
+
+	ipcMain.handle('updater:check-now', async () => {
+		if (!app.isPackaged) return { ok: false as const, reason: 'not-packaged' as const }
+		await autoUpdater.checkForUpdates()
+		return { ok: true as const }
+	})
+
+	ipcMain.handle('app:get-packaged-info', () => ({
+		isPackaged: app.isPackaged,
+		version: app.getVersion(),
+	}))
 
 	ipcMain.handle('window:close-scratch', (event) => {
 		const w = BrowserWindow.fromWebContents(event.sender)
@@ -546,9 +644,17 @@ async function readSetting(path: string): Promise<SettingConfig | null> {
 
 		const data = await fs.readFile(path, 'utf-8')
 		const parseConfig = JSON.parse(data)
+		const merged = {
+			setting: {
+				autostart: false,
+				dark: false,
+				showClock: true,
+				checkForUpdates: false,
+				...(parseConfig.setting ?? {}),
+			},
+		}
 
-
-		return new SettingConfig(parseConfig)
+		return new SettingConfig(merged)
 	} catch (error) {
 		console.error(error)
 		return null
@@ -703,7 +809,8 @@ async function initSettingFile() {
 		"setting": {
 			"autostart": false,
 			"dark": false,
-			"showClock": true
+			"showClock": true,
+			"checkForUpdates": false
 		}
 	}`
 
