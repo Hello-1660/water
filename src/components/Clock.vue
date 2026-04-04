@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, onActivated, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated, nextTick, watch, watchEffect } from 'vue'
+import { useTimingFloatStore } from '../stores/timingFloatStore'
 
 defineProps({
     model: {
@@ -117,6 +118,31 @@ const runTime = computed(() => {
 
     return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:${second.toString().padStart(2, '0')}`
 })
+
+const timingFloatStore = useTimingFloatStore()
+watchEffect(() => {
+    const inWork = !isShowStopwatchSetting.value && countdownTotal.value > 0
+    const hasRemain =
+        runTimeNumFloat.value > 0 ||
+        (isRunStop.value && pausedRemainMs.value > 0)
+    const active = inWork && hasRemain
+    timingFloatStore.patchClock(active, active ? runTime.value : '', active ? isRunStop.value : false)
+})
+
+watch(
+    () => timingFloatStore.clockPauseTogglePending,
+    (pending) => {
+        if (!pending) return
+        timingFloatStore.clearClockPauseToggleRequest()
+        const inWork = !isShowStopwatchSetting.value && countdownTotal.value > 0
+        const hasRemain =
+            runTimeNumFloat.value > 0 ||
+            (isRunStop.value && pausedRemainMs.value > 0)
+        if (inWork && hasRemain) {
+            stopRunTime()
+        }
+    },
+)
 
 let rafId = 0
 
@@ -252,6 +278,7 @@ onUnmounted(() => {
     window.removeEventListener('resize', onWindowResize)
     document.removeEventListener('visibilitychange', onVisibilityChange)
     stopTickLoop()
+    timingFloatStore.patchClock(false, '')
 })
 
 onActivated(() => {

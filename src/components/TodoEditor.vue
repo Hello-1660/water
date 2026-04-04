@@ -2,7 +2,7 @@
 import TextEditor from './TextEditor.vue'
 import Popup from './Popup.vue'
 import type { Todo } from './TodoList.vue'
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onDeactivated, ref, watch } from 'vue'
 
 const TODODIR = 'todo'
 const FILETYPE_NEW = 'html'
@@ -145,10 +145,11 @@ function onGlobalKeydown(e: KeyboardEvent) {
     triggerQuickSave()
 }
 
-onMounted(() => {
+/** keep-alive 缓存 Todo 时不会 unmount，必须用 activated/deactivated，否则会一直占用全局 Ctrl+S，便签等页保存失效 */
+onActivated(() => {
     document.addEventListener('keydown', onGlobalKeydown, true)
 })
-onUnmounted(() => {
+onDeactivated(() => {
     document.removeEventListener('keydown', onGlobalKeydown, true)
 })
 

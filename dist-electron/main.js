@@ -1,7 +1,7 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-import { app, BrowserWindow, Tray, Menu, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, Tray, Menu, ipcMain, screen, dialog } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs/promises";
@@ -29,6 +29,8 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let isDev = process.env.NODE_ENV === "development";
 let win;
 let noteWin;
+let noteWinSavedBounds = null;
+let noteWinFillsWorkArea = false;
 let isStorage = false;
 let tray;
 const gotTheLock = app.requestSingleInstanceLock();
@@ -146,18 +148,27 @@ async function createNoteWindow() {
     if (!noteWin) return;
     noteWin.close();
     noteWin = null;
+    noteWinSavedBounds = null;
+    noteWinFillsWorkArea = false;
   });
   ipcMain.handle("window:max-note-window", () => {
-    if (!noteWin) return;
-    noteWin.maximize();
+    if (!noteWin || noteWinFillsWorkArea) return;
+    noteWinSavedBounds = noteWin.getBounds();
+    const { workArea } = screen.getDisplayMatching(noteWin.getBounds());
+    noteWin.setBounds({ ...workArea });
+    noteWinFillsWorkArea = true;
   });
   ipcMain.handle("window:min-note-window", () => {
     if (!noteWin) return;
     noteWin.minimize();
   });
   ipcMain.handle("window:restore-note-window", () => {
-    if (!noteWin) return;
-    noteWin.restore();
+    if (!noteWin || !noteWinFillsWorkArea) return;
+    if (noteWinSavedBounds) {
+      noteWin.setBounds(noteWinSavedBounds);
+    }
+    noteWinSavedBounds = null;
+    noteWinFillsWorkArea = false;
   });
   ipcMain.handle("file:save", (_, name, type, content, dir = DATADIR) => {
     return saveFile(name, type, content, dir);

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import Top from './components/Top.vue'
+import TimingFloatPanel from './components/TimingFloatPanel.vue'
 import { useSettingStore } from './stores/settingStore'
 import { useUiConfigStore } from './stores/uiConfigStore'
-import { onMounted, ref } from 'vue'
+import { onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 
 const uiConfigStore = useUiConfigStore()
@@ -39,7 +41,23 @@ onMounted(async () => {
     }
 })  
 
-const currentRouter = ref('todo')
+const route = useRoute()
+
+const routeNameToNav: Record<string, string> = {
+    Todo: 'todo',
+    StickyNote: 'stickyNote',
+    Timing: 'timing',
+    TimeTable: 'timeTable',
+    Setting: 'setting',
+}
+
+const currentRouter = computed(() => {
+    const name = route.name
+    if (typeof name === 'string' && routeNameToNav[name]) {
+        return routeNameToNav[name]
+    }
+    return 'todo'
+})
 </script>
 
 <template>
@@ -47,7 +65,7 @@ const currentRouter = ref('todo')
         <Top />
         <div class="main">
             <div class="option">
-                <router-link to="/todo" class="nav-link" :class="{ 'active' : currentRouter === 'todo' }" @click="currentRouter = 'todo'">
+                <router-link to="/todo" class="nav-link" :class="{ 'active' : currentRouter === 'todo' }">
                     <svg  t="1769091621907" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                         p-id="26286">
                         <path
@@ -60,7 +78,7 @@ const currentRouter = ref('todo')
                     <div class="link">便签</div>
                 </router-link>
 
-                <router-link to="/stickyNote" class="nav-link" :class="{ 'active' : currentRouter === 'stickyNote' }" @click="currentRouter = 'stickyNote'">
+                <router-link to="/stickyNote" class="nav-link" :class="{ 'active' : currentRouter === 'stickyNote' }">
                     <svg t="1769091801240" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                         p-id="33274">
                         <path
@@ -70,7 +88,7 @@ const currentRouter = ref('todo')
                     <div class="link">笔记</div>
                 </router-link>
 
-                <router-link to="/timing" class="nav-link" :class="{ 'active' : currentRouter === 'timing' }" @click="currentRouter = 'timing'">
+                <router-link to="/timing" class="nav-link" :class="{ 'active' : currentRouter === 'timing' }">
                     <svg  t="1769091968129" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                         p-id="34643">
                         <path
@@ -80,12 +98,12 @@ const currentRouter = ref('todo')
                     <div class="link">计时</div>
                 </router-link>
 
-                <router-link to="/timeTable" class="nav-link" :class="{ 'active' : currentRouter === 'timeTable' }" @click="currentRouter = 'timeTable'">
+                <router-link to="/timeTable" class="nav-link" :class="{ 'active' : currentRouter === 'timeTable' }">
                     <svg t="1769683885393"  viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="7555"><path d="M873.658182 50.688h-73.355637a35.328 35.328 0 0 0 0 70.609455h73.309091c18.013091 0 32.674909 14.661818 32.674909 32.674909v123.345454H117.76v-123.345454c0-18.013091 14.661818-32.674909 32.674909-32.674909h73.262546a35.328 35.328 0 0 0 0-70.609455H150.481455c-56.971636 0-103.330909 46.312727-103.33091 103.330909v730.624c0 56.925091 46.359273 103.237818 103.33091 103.237818h723.130181c56.971636 0 103.330909-46.312727 103.330909-103.237818V153.972364c0-56.971636-46.359273-103.284364-103.330909-103.284364z m0 866.583273H150.434909a32.674909 32.674909 0 0 1-32.674909-32.628364V347.927273h788.48v536.669091a32.674909 32.674909 0 0 1-32.674909 32.674909z m-437.806546-795.927273h152.855273a35.328 35.328 0 0 0 0-70.656H435.851636a35.328 35.328 0 0 0 0 70.609455zM330.007273 171.333818c19.502545 0 35.281455-19.130182 35.281454-42.682182V43.287273c0-23.598545-15.825455-42.682182-35.281454-42.682182-19.549091 0-35.374545 19.083636-35.374546 42.682182v85.364363c0 23.552 15.825455 42.682182 35.374546 42.682182z m364.683636 0c19.502545 0 35.281455-19.130182 35.281455-42.682182V43.287273c0-23.598545-15.825455-42.682182-35.281455-42.682182-19.549091 0-35.328 19.083636-35.328 42.682182v85.364363c0 23.552 15.825455 42.682182 35.328 42.682182z m64.605091 312.599273H264.843636a35.328 35.328 0 1 0 0 70.656h494.405819a35.328 35.328 0 0 0 0-70.656z m0 214.109091H264.843636a35.328 35.328 0 1 0 0 70.609454h494.405819a35.328 35.328 0 0 0 0-70.609454z" p-id="7556"></path></svg>
                     <div class="link">课表</div>
                 </router-link>
 
-                <router-link to="/setting" id="setting" class="nav-link" @click="currentRouter = 'setting'">
+                <router-link to="/setting" id="setting" class="nav-link" :class="{ 'active' : currentRouter === 'setting' }">
                     <svg t="1769092206653" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                         p-id="38767">
                         <path
@@ -104,6 +122,7 @@ const currentRouter = ref('todo')
                 </router-view>
             </div>
         </div>
+        <TimingFloatPanel />
     </div>
 </template>
 

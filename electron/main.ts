@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, Tray, Menu, ipcMain, dialog, screen } from 'electron'
 import { fileURLToPath } from 'node:url'
 import { UIConfig, SettingConfig } from '../src/config/Config'
 import path from 'node:path'
@@ -34,6 +34,9 @@ let isDev: boolean = process.env.NODE_ENV === 'development'
 
 let win: BrowserWindow | null
 let noteWin: BrowserWindow | null
+/** 便签窗口「铺满工作区」前的大小，用于恢复（避免 maximize() 在无边框下盖住任务栏） */
+let noteWinSavedBounds: { x: number; y: number; width: number; height: number } | null = null
+let noteWinFillsWorkArea = false
 let isStorage: boolean = false
 // 系统托盘
 let tray: Tray | null 
@@ -190,14 +193,19 @@ async function createNoteWindow() {
 
 		noteWin.close()
 		noteWin = null
+		noteWinSavedBounds = null
+		noteWinFillsWorkArea = false
 	})
 
 
 
 	ipcMain.handle('window:max-note-window', () => {
-		if (!noteWin) return
+		if (!noteWin || noteWinFillsWorkArea) return
 
-		noteWin.maximize()
+		noteWinSavedBounds = noteWin.getBounds()
+		const { workArea } = screen.getDisplayMatching(noteWin.getBounds())
+		noteWin.setBounds({ ...workArea })
+		noteWinFillsWorkArea = true
 	})
 
 	ipcMain.handle('window:min-note-window', () => {
@@ -207,9 +215,13 @@ async function createNoteWindow() {
 	})
 
 	ipcMain.handle('window:restore-note-window', () => {
-		if (!noteWin) return
+		if (!noteWin || !noteWinFillsWorkArea) return
 
-		noteWin.restore()
+		if (noteWinSavedBounds) {
+			noteWin.setBounds(noteWinSavedBounds)
+		}
+		noteWinSavedBounds = null
+		noteWinFillsWorkArea = false
 	})
 
 	ipcMain.handle('file:save', (_, name: string, type: string, content: string, dir: string = DATADIR): Promise<boolean> => {

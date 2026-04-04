@@ -1,5 +1,6 @@
 <script setup lang="ts"> 
-import { ref, computed } from 'vue'
+import { ref, computed, watch, watchEffect, onUnmounted, onActivated } from 'vue'
+import { useTimingFloatStore } from '../stores/timingFloatStore'
 
 const isShowLog = ref(false)
 const isReadyShowLog = ref(false)
@@ -32,7 +33,6 @@ const formateTimeFunc = (time: number): string[] => {
 const formatTime = computed(() => {
     return formateTimeFunc(time.value)
 })
-
 
 let timeInterval: NodeJS.Timeout | null = null
 const isStop = ref(false)
@@ -73,8 +73,55 @@ const tag = () => {
         formatUpdateTime: formatUpdateTime,
         formatTime: formatTemp
     })
+
+    isReadyShowLog.value = true
+    if (document.documentElement.clientWidth > 1500) {
+        isShowLog.value = true
+    }
 }
 
+const timingFloatStore = useTimingFloatStore()
+
+watchEffect(() => {
+    if (!isRun.value) {
+        timingFloatStore.patchSecond(false, '', false)
+        return
+    }
+    const parts = formatTime.value
+    const label = `${parts[2]}:${parts[1]}.${parts[0]}`
+    timingFloatStore.patchSecond(true, label, isStop.value)
+})
+
+watch(
+    () => timingFloatStore.secondTagPending,
+    (pending) => {
+        if (!pending) return
+        timingFloatStore.clearSecondTagRequest()
+        if (isRun.value && !isStop.value) {
+            tag()
+        }
+    },
+)
+
+onUnmounted(() => {
+    timingFloatStore.patchSecond(false, '', false)
+})
+
+function syncLogPanelVisibility() {
+    if (logs.value.length === 0) {
+        isReadyShowLog.value = false
+        isShowLog.value = false
+        return
+    }
+    isReadyShowLog.value = true
+    if (document.documentElement.clientWidth > 1500) {
+        isShowLog.value = true
+    }
+}
+
+onActivated(() => {
+    syncLogPanelVisibility()
+})
 
 const stop = () => {
     if (isStop.value) {

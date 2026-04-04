@@ -149,6 +149,11 @@ const handleDel = (data: string) => {
     }, 200)
 }
 
+const handleSaveView = (payload: { name: string; html: string }) => {
+    saveTable(payload.name, payload.html)
+    htmlContent.value = payload.html
+}
+
 onMounted(() => {
     getTableList()
 })
@@ -294,6 +299,7 @@ onMounted(() => {
             :html-content="htmlContent"
             @close="handleClose"
             @delete="handleDel"
+            @save="handleSaveView"
             />
         </div>
     </div>
