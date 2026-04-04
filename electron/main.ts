@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, ipcMain, dialog, screen, globalShortcut } from 'electron'
+import { app, BrowserWindow, Tray, Menu, ipcMain, dialog, screen, globalShortcut, shell } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { execFileSync, spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -277,6 +277,7 @@ async function createNoteWindow() {
 	ipcMain.removeHandler('file:save')
 	ipcMain.removeHandler('file:open')
 	ipcMain.removeHandler('file:open-all')
+	ipcMain.removeHandler('file:open-workspace-tree')
 	ipcMain.removeHandler('file:delete')
 	ipcMain.removeHandler('file:rename')
 	ipcMain.removeHandler('shell:open-terminal-at')
@@ -338,6 +339,10 @@ async function createNoteWindow() {
 
 	ipcMain.handle('file:open-all', async (_, dir: string = DATADIR) => {
 		return await getAllFileList(dir)
+	})
+
+	ipcMain.handle('file:open-workspace-tree', async (_, dir: string = DATADIR) => {
+		return await getWorkspaceTree(dir)
 	})
 
 	ipcMain.handle('file:delete', async (_, name: string, dir: string = DATADIR) => {
@@ -555,6 +560,19 @@ app.whenReady().then(async () => {
 		isPackaged: app.isPackaged,
 		version: app.getVersion(),
 	}))
+
+	ipcMain.removeHandler('shell:open-folder-location')
+	ipcMain.handle(
+		'shell:open-folder-location',
+		async (_, workspaceRoot: string, relFolderPath: string): Promise<boolean> => {
+			const root = resolveWorkspaceDir(workspaceRoot)
+			const segments = relFolderPath.replace(/\\/g, '/').split('/').filter(Boolean)
+			const abs = path.join(root, ...segments)
+			if (!(await isFolderExist(abs))) return false
+			const err = await shell.openPath(abs)
+			return err === ''
+		}
+	)
 
 	ipcMain.handle('window:close-scratch', (event) => {
 		const w = BrowserWindow.fromWebContents(event.sender)
@@ -859,30 +877,38 @@ async function writeStickyLastFolder(folder: string | null) {
 	await fs.writeFile(getStickyWorkspaceJsonPath(), payload, 'utf-8')
 }
 
-// 保存文件
+// 保存文件（name 可含子目录，如 src/views/App，type 为扩展名）
 function saveFile(name: string, type: string, file: string, dir: string = DATADIR): Promise<boolean> {
 	return new Promise(async (resolve, reject) => {
 		try {
 			const root = resolveWorkspaceDir(dir)
-			const base = type ? `${name}.${type}` : name
-			const savePath = path.join(root, base)
+			const norm = name.replace(/\\/g, '/')
+			const lastSlash = norm.lastIndexOf('/')
+			const dirPart = lastSlash >= 0 ? norm.slice(0, lastSlash) : ''
+			const baseName = lastSlash >= 0 ? norm.slice(lastSlash + 1) : norm
+			const fileName = type ? `${baseName}.${type}` : baseName
+			const rel = dirPart ? `${dirPart}/${fileName}` : fileName
+			const segments = rel.split('/').filter(Boolean)
+			const savePath = path.join(root, ...segments)
+			await fs.mkdir(path.dirname(savePath), { recursive: true })
 			await fs.writeFile(savePath, file, { encoding: 'utf8' })
-			
-			resolve(true);
+
+			resolve(true)
 		} catch (error) {
 			const errMsg = `保存文件失败：${(error as Error).message}`
 			reject(new Error(errMsg))
 		}
-	});
-} 
+	})
+}
 
 
-// 获取文件
+// 获取文件（name 为相对路径，可含子目录）
 function getFile(name: string, dir: string = DATADIR): Promise<string> {
 	return new Promise(async (resolve, reject) => {
 		try {
 			const root = resolveWorkspaceDir(dir)
-			const filePath = path.join(root, name)
+			const segments = name.replace(/\\/g, '/').split('/').filter(Boolean)
+			const filePath = path.join(root, ...segments)
 			const data = await fs.readFile(filePath, 'utf-8')
 			resolve(data)
 		} catch (error) {
@@ -896,7 +922,64 @@ interface FileType {
 	type: string,
 }
 
-// 获取所有文件
+export interface WorkspaceTreeEntry {
+	kind: 'file' | 'folder'
+	/** 相对工作区根的路径，正斜杠 */
+	relPath: string
+	/** 展示用短名（文件名或文件夹名） */
+	name: string
+	/** 仅文件：扩展名不含点 */
+	type?: string
+	children?: WorkspaceTreeEntry[]
+}
+
+const TREE_SKIP_DIRS = new Set(['.git', 'node_modules', '.svn', 'dist', 'dist-electron', 'release'])
+
+function toPosixRel(segments: string[]): string {
+	return segments.join('/')
+}
+
+async function readWorkspaceTree(absDir: string, relSegments: string[]): Promise<WorkspaceTreeEntry[]> {
+	const dirents = await fs.readdir(absDir, { withFileTypes: true })
+	const entries: WorkspaceTreeEntry[] = []
+
+	for (const d of dirents) {
+		if (d.name === '.' || d.name === '..') continue
+		const nextSegs = [...relSegments, d.name]
+		const relPath = toPosixRel(nextSegs)
+		const full = path.join(absDir, d.name)
+
+		if (d.isDirectory()) {
+			if (TREE_SKIP_DIRS.has(d.name)) continue
+			const children = await readWorkspaceTree(full, nextSegs)
+			entries.push({ kind: 'folder', name: d.name, relPath, children })
+		} else if (d.isFile()) {
+			const parsed = path.parse(d.name)
+			const ext = parsed.ext ? parsed.ext.slice(1) : ''
+			entries.push({ kind: 'file', name: parsed.name, type: ext, relPath })
+		}
+	}
+
+	entries.sort((a, b) => {
+		if (a.kind !== b.kind) return a.kind === 'folder' ? -1 : 1
+		return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+	})
+	return entries
+}
+
+function getWorkspaceTree(dir: string): Promise<WorkspaceTreeEntry[]> {
+	return new Promise(async (resolve) => {
+		try {
+			const root = resolveWorkspaceDir(dir)
+			const tree = await readWorkspaceTree(root, [])
+			resolve(tree)
+		} catch {
+			resolve([])
+		}
+	})
+}
+
+// 获取所有文件（仅根目录一层，兼容旧逻辑）
 function getAllFileList(dir: string = DATADIR): Promise<FileType[]> {
 	return new Promise(async (resolve, reject) => {
 		try {
@@ -927,7 +1010,8 @@ function deleteFile(name: string, dir: string = DATADIR): Promise<boolean> {
 	return new Promise(async (resolve, reject) => {
 		try {
 			const root = resolveWorkspaceDir(dir)
-			const filePath = path.join(root, name)
+			const segments = name.replace(/\\/g, '/').split('/').filter(Boolean)
+			const filePath = path.join(root, ...segments)
 			await fs.unlink(filePath)
 			resolve(true)
 		} catch (error) {
@@ -950,8 +1034,13 @@ async function renameWorkspaceFile(
 		if (!trimmed || INVALID_WIN_FILENAME.test(trimmed)) return false
 		const ext = newType.trim()
 		const newBase = ext ? `${trimmed}.${ext}` : trimmed
-		const oldPath = path.join(root, oldRel)
-		const newPath = path.join(root, newBase)
+		const normOld = oldRel.replace(/\\/g, '/')
+		const parent = path.posix.dirname(normOld)
+		const newRel = parent === '.' ? newBase : `${parent}/${newBase}`
+		const oldSegments = normOld.split('/').filter(Boolean)
+		const newSegments = newRel.split('/').filter(Boolean)
+		const oldPath = path.join(root, ...oldSegments)
+		const newPath = path.join(root, ...newSegments)
 		if (path.normalize(oldPath) === path.normalize(newPath)) return true
 		if (!(await isFileExist(oldPath))) return false
 		if (await isFileExist(newPath)) return false

@@ -76,41 +76,115 @@ function onSidebarResizerDblClick() {
 /** 当前工作区根目录（绝对路径），不再使用固定 data 目录 */
 const workspaceRoot = ref<string | null>(null)
 
-interface WorkspaceFile {
+interface WorkspaceTreeNode {
+  kind: 'file' | 'folder'
+  relPath: string
   name: string
-  type: string
+  type?: string
+  children?: WorkspaceTreeNode[]
 }
+
+type WorkspaceFileEntry = WorkspaceTreeNode & { kind: 'file' }
 
 interface EditorTab {
   id: string
+  /** 相对工作区根的路径，正斜杠；未落盘为空串 */
+  relPath: string
   name: string
   type: string
   content: string
   savedContent: string
 }
 
-const workspaceFiles = ref<WorkspaceFile[]>([])
+const EXPLORER_EXPANDED_KEY = 'sticky-explorer-expanded'
+
+const workspaceTree = ref<WorkspaceTreeNode[]>([])
+const expandedFolders = ref<Set<string>>(new Set())
 const tabs = ref<EditorTab[]>([])
 const activeId = ref<string | null>(null)
 let untitledSeq = 0
 
 const activeTab = computed(() => tabs.value.find((t) => t.id === activeId.value) ?? null)
 
-function fileKey(name: string, type: string) {
-  return `${name}:${type}`
-}
-
-/** 与主进程 path.parse 一致：无扩展名时不要用尾部的「.」 */
-function fileDiskPath(name: string, type: string) {
+function toRelPath(name: string, type: string) {
   return type ? `${name}.${type}` : name
 }
+
+function parseRelPathParts(relPath: string): { name: string; type: string } {
+  const seg = relPath.split('/').pop() ?? relPath
+  const i = seg.lastIndexOf('.')
+  if (i <= 0) return { name: seg, type: '' }
+  return { name: seg.slice(0, i), type: seg.slice(i + 1) }
+}
+
+function relPathToSaveNameAndType(relPath: string): { saveName: string; type: string } {
+  const { name, type } = parseRelPathParts(relPath)
+  const dir = relPath.includes('/') ? relPath.slice(0, relPath.lastIndexOf('/')) : ''
+  const saveName = dir ? `${dir}/${name}` : name
+  return { saveName, type }
+}
+
+function loadExpandedForRoot(root: string | null): Set<string> {
+  if (!root) return new Set()
+  try {
+    const map = JSON.parse(localStorage.getItem(EXPLORER_EXPANDED_KEY) || '{}') as Record<string, string[]>
+    return new Set(map[root] ?? [])
+  } catch {
+    return new Set()
+  }
+}
+
+function persistExpandedForRoot(root: string, set: Set<string>) {
+  try {
+    const map = JSON.parse(localStorage.getItem(EXPLORER_EXPANDED_KEY) || '{}') as Record<string, string[]>
+    map[root] = [...set]
+    localStorage.setItem(EXPLORER_EXPANDED_KEY, JSON.stringify(map))
+  } catch {
+    /* ignore */
+  }
+}
+
+function toggleFolderExpanded(relPath: string) {
+  const next = new Set(expandedFolders.value)
+  if (next.has(relPath)) next.delete(relPath)
+  else next.add(relPath)
+  expandedFolders.value = next
+  const r = workspaceRoot.value
+  if (r) persistExpandedForRoot(r, next)
+}
+
+interface FlatExplorerRow {
+  kind: 'file' | 'folder'
+  relPath: string
+  name: string
+  type?: string
+  depth: number
+}
+
+function flattenVisibleTree(nodes: WorkspaceTreeNode[], expanded: Set<string>, depth = 0): FlatExplorerRow[] {
+  const rows: FlatExplorerRow[] = []
+  for (const n of nodes) {
+    if (n.kind === 'folder') {
+      rows.push({ kind: 'folder', relPath: n.relPath, name: n.name, depth })
+      if (expanded.has(n.relPath) && n.children?.length) {
+        rows.push(...flattenVisibleTree(n.children, expanded, depth + 1))
+      }
+    } else {
+      rows.push({ kind: 'file', relPath: n.relPath, name: n.name, type: n.type, depth })
+    }
+  }
+  return rows
+}
+
+const flatExplorerRows = computed(() => flattenVisibleTree(workspaceTree.value, expandedFolders.value))
 
 function isDirty(tab: EditorTab) {
   return tab.content !== tab.savedContent
 }
 
 function tabTitle(tab: EditorTab) {
-  if (!tab.name) return '未命名'
+  if (!tab.name && !tab.relPath) return '未命名'
+  if (tab.relPath) return tab.relPath.split('/').pop() ?? tab.relPath
   return tab.type ? `${tab.name}.${tab.type}` : tab.name
 }
 
@@ -122,11 +196,11 @@ async function persistWorkspace(folder: string | null) {
 function refreshWorkspace() {
   const root = workspaceRoot.value
   if (!root) {
-    workspaceFiles.value = []
+    workspaceTree.value = []
     return
   }
-  window.electronAPI.openAllFiles(root).then((data) => {
-    workspaceFiles.value = data ?? []
+  window.electronAPI.openWorkspaceTree(root).then((data) => {
+    workspaceTree.value = (data ?? []) as WorkspaceTreeNode[]
   })
 }
 
@@ -143,39 +217,40 @@ async function chooseOpenFile() {
   if (!picked) return
   await persistWorkspace(picked.dir)
   refreshWorkspace()
-  await openFileFromParts(picked.name, picked.type)
+  await openFileFromRelPath(toRelPath(picked.name, picked.type))
   setResultPopup('已打开文件', true)
 }
 
-async function openFileFromParts(name: string, type: string) {
+async function openFileFromRelPath(relPath: string) {
   const root = workspaceRoot.value
   if (!root) return
-  const id = fileKey(name, type)
-  const existing = tabs.value.find((t) => t.id === id)
+  const existing = tabs.value.find((t) => t.id === relPath)
   if (existing) {
-    activeId.value = id
+    activeId.value = relPath
     return
   }
+  const { name, type } = parseRelPathParts(relPath)
   let content = ''
   try {
-    const raw = await window.electronAPI.openFile(fileDiskPath(name, type), root)
+    const raw = await window.electronAPI.openFile(relPath, root)
     content = typeof raw === 'string' ? raw : ''
   } catch {
     setResultPopup('读取文件失败', false)
     return
   }
   tabs.value.push({
-    id,
+    id: relPath,
+    relPath,
     name,
     type,
     content,
     savedContent: content,
   })
-  activeId.value = id
+  activeId.value = relPath
 }
 
-async function openFileInTab(entry: WorkspaceFile) {
-  await openFileFromParts(entry.name, entry.type)
+async function openFileInSidebar(entry: WorkspaceFileEntry) {
+  await openFileFromRelPath(entry.relPath)
 }
 
 function newUntitled() {
@@ -183,6 +258,7 @@ function newUntitled() {
   const id = `untitled-${untitledSeq}`
   tabs.value.push({
     id,
+    relPath: '',
     name: '',
     type: HTML,
     content: '',
@@ -214,9 +290,14 @@ function openSaveDialog() {
 
 async function saveTabToDisk(tab: EditorTab): Promise<boolean> {
   const root = workspaceRoot.value
-  if (!tab.name || !root) return false
+  if (!root) return false
+  if (!tab.relPath && !tab.name) return false
+  const { saveName, type: saveType } = tab.relPath
+    ? relPathToSaveNameAndType(tab.relPath)
+    : { saveName: tab.name, type: tab.type }
+  if (!saveName) return false
   try {
-    const ok = await window.electronAPI.saveFile(tab.name, tab.type, tab.content, root)
+    const ok = await window.electronAPI.saveFile(saveName, saveType, tab.content, root)
     if (ok) {
       tab.savedContent = tab.content
       refreshWorkspace()
@@ -302,9 +383,9 @@ function closeDirtyCancel() {
   closeDirtyTabId.value = null
 }
 
-const isSidebarFileActive = (f: WorkspaceFile) => {
+const isSidebarFileActive = (relPath: string) => {
   const t = activeTab.value
-  return !!t && t.name === f.name && t.type === f.type
+  return !!t && t.relPath === relPath
 }
 
 const onGlobalKeydown = (e: KeyboardEvent) => {
@@ -316,24 +397,24 @@ const onGlobalKeydown = (e: KeyboardEvent) => {
 }
 
 /** ---- 右键菜单（类似 VS Code 资源管理器）---- */
-type CtxKind = 'root' | 'file'
+type CtxKind = 'root' | 'file' | 'folder'
 
 const ctxVisible = ref(false)
 const ctxX = ref(0)
 const ctxY = ref(0)
 const ctxKind = ref<CtxKind>('root')
-const ctxFile = ref<WorkspaceFile | null>(null)
+const ctxFile = ref<WorkspaceFileEntry | null>(null)
+const ctxFolderRelPath = ref('')
+
+const NEW_FILENAME_INVALID = /[\\/:*?"<>|]/
 
 function closeContextMenu() {
   ctxVisible.value = false
   ctxFile.value = null
+  ctxFolderRelPath.value = ''
 }
 
-function openCtxAt(e: MouseEvent, kind: CtxKind, file: WorkspaceFile | null) {
-  e.preventDefault()
-  ctxKind.value = kind
-  ctxFile.value = file
-  ctxVisible.value = true
+function applyCtxMenuPosition(e: MouseEvent) {
   ctxX.value = e.clientX
   ctxY.value = e.clientY
   nextTick(() => {
@@ -350,14 +431,104 @@ function openCtxAt(e: MouseEvent, kind: CtxKind, file: WorkspaceFile | null) {
   })
 }
 
+function openCtxAt(e: MouseEvent, kind: CtxKind, file: WorkspaceFileEntry | null) {
+  e.preventDefault()
+  ctxKind.value = kind
+  ctxFile.value = file
+  ctxFolderRelPath.value = ''
+  ctxVisible.value = true
+  applyCtxMenuPosition(e)
+}
+
+function openFolderCtxMenu(e: MouseEvent, row: FlatExplorerRow) {
+  if (row.kind !== 'folder') return
+  e.preventDefault()
+  ctxKind.value = 'folder'
+  ctxFolderRelPath.value = row.relPath
+  ctxFile.value = null
+  ctxVisible.value = true
+  applyCtxMenuPosition(e)
+}
+
 function onRootContextMenu(e: MouseEvent) {
   const target = e.target as HTMLElement
-  if (target.closest('.file-item')) return
+  if (target.closest('.explorer-row')) return
   openCtxAt(e, 'root', null)
 }
 
-function onFileContextMenu(e: MouseEvent, f: WorkspaceFile) {
+function onFileContextMenu(e: MouseEvent, f: WorkspaceFileEntry) {
   openCtxAt(e, 'file', f)
+}
+
+function expandFolderAncestors(relFolderPath: string) {
+  const next = new Set(expandedFolders.value)
+  let acc = ''
+  for (const seg of relFolderPath.split('/').filter(Boolean)) {
+    acc = acc ? `${acc}/${seg}` : seg
+    next.add(acc)
+  }
+  expandedFolders.value = next
+  const r = workspaceRoot.value
+  if (r) persistExpandedForRoot(r, next)
+}
+
+const isShowNewInFolderPopup = ref(false)
+const newInFolderParentRel = ref('')
+const newInFolderFileName = ref('')
+const newInFolderFileType = ref(HTML)
+
+function ctxNewFileInFolder() {
+  const rel = ctxFolderRelPath.value
+  closeContextMenu()
+  if (!rel) return
+  newInFolderParentRel.value = rel
+  newInFolderFileName.value = ''
+  newInFolderFileType.value = HTML
+  isShowNewInFolderPopup.value = true
+}
+
+function handleNewInFolderSure() {
+  const root = workspaceRoot.value
+  const parent = newInFolderParentRel.value
+  const base = newInFolderFileName.value.trim()
+  const type = newInFolderFileType.value.trim() || HTML
+  if (!root || !parent) {
+    isShowNewInFolderPopup.value = false
+    newInFolderParentRel.value = ''
+    return
+  }
+  if (!base || NEW_FILENAME_INVALID.test(base)) {
+    setResultPopup('请输入合法文件名（勿含 \\ / : * ? 等非法字符）', false)
+    return
+  }
+  const saveName = `${parent}/${base}`
+  window.electronAPI.saveFile(saveName, type, '', root).then((ok: boolean) => {
+    if (ok) {
+      expandFolderAncestors(parent)
+      refreshWorkspace()
+      const relPath = type ? `${saveName}.${type}` : saveName
+      openFileFromRelPath(relPath)
+      setResultPopup('已创建', true)
+    } else {
+      setResultPopup('创建失败', false)
+    }
+    newInFolderFileName.value = ''
+    newInFolderParentRel.value = ''
+    isShowNewInFolderPopup.value = false
+  })
+}
+
+async function ctxOpenFolderInOS() {
+  const rel = ctxFolderRelPath.value
+  const root = workspaceRoot.value
+  closeContextMenu()
+  if (!root || !rel) return
+  try {
+    const ok = await window.electronAPI.openFolderInOS(root, rel)
+    if (!ok) setResultPopup('无法打开文件夹', false)
+  } catch {
+    setResultPopup('无法打开文件夹', false)
+  }
 }
 
 async function ctxOpenFolder() {
@@ -387,8 +558,7 @@ async function ctxSaveFile() {
     setResultPopup('请先打开文件夹', false)
     return
   }
-  const id = fileKey(f.name, f.type)
-  const tab = tabs.value.find((t) => t.id === id)
+  const tab = tabs.value.find((t) => t.id === f.relPath)
   if (!tab) {
     setResultPopup('请先在编辑器中打开该文件', false)
     return
@@ -401,7 +571,7 @@ async function ctxSaveFile() {
   setResultPopup(ok ? '保存成功' : '保存失败', ok)
 }
 
-const deleteCtxFile = ref<WorkspaceFile | null>(null)
+const deleteCtxFile = ref<WorkspaceFileEntry | null>(null)
 
 function ctxDeleteFile() {
   const f = ctxFile.value
@@ -438,10 +608,15 @@ const onDocPointerDown = (e: MouseEvent) => {
   closeContextMenu()
 }
 
+watch(workspaceRoot, (r) => {
+  expandedFolders.value = loadExpandedForRoot(r)
+})
+
 onMounted(async () => {
   const last = await window.electronAPI.stickyGetLastWorkspace()
   if (last) {
     workspaceRoot.value = last
+    expandedFolders.value = loadExpandedForRoot(last)
     refreshWorkspace()
   }
   window.addEventListener('keydown', onGlobalKeydown)
@@ -456,7 +631,7 @@ onUnmounted(() => {
 
 const isShowDeletePopup = ref(false)
 const isShowRenamePopup = ref(false)
-const renameCtxFile = ref<WorkspaceFile | null>(null)
+const renameCtxFile = ref<WorkspaceFileEntry | null>(null)
 const renamePopupFileName = ref('')
 const renamePopupFileType = ref('')
 const isShowSavePopup = ref(false)
@@ -471,13 +646,12 @@ const handleDeletePopupSure = () => {
     return
   }
   window.electronAPI
-    .deleteFile(fileDiskPath(f.name, f.type), workspaceRoot.value)
+    .deleteFile(f.relPath, workspaceRoot.value)
     .then((data: boolean) => {
       refreshWorkspace()
       if (data) {
-        const id = fileKey(f.name, f.type)
-        const open = tabs.value.find((t) => t.id === id)
-        if (open) doCloseTab(id)
+        const open = tabs.value.find((t) => t.id === f.relPath)
+        if (open) doCloseTab(f.relPath)
       }
       setResultPopup(data ? '删除成功' : '删除失败', data)
       isShowDeletePopup.value = false
@@ -508,9 +682,11 @@ const handleRenamePopupSure = () => {
     setResultPopup('请输入文件名', false)
     return
   }
-  const oldRel = fileDiskPath(f.name, f.type)
-  const oldId = fileKey(f.name, f.type)
-  const newId = fileKey(name, type)
+  const oldRel = f.relPath
+  const normOld = oldRel.replace(/\\/g, '/')
+  const parent = normOld.includes('/') ? normOld.slice(0, normOld.lastIndexOf('/')) : ''
+  const newRelPath = parent ? `${parent}/${type ? `${name}.${type}` : name}` : type ? `${name}.${type}` : name
+  const oldId = oldRel
 
   window.electronAPI
     .renameWorkspaceFile(oldRel, name, type, root)
@@ -523,8 +699,9 @@ const handleRenamePopupSure = () => {
       if (tab) {
         tab.name = name
         tab.type = type
-        tab.id = newId
-        if (activeId.value === oldId) activeId.value = newId
+        tab.relPath = newRelPath
+        tab.id = newRelPath
+        if (activeId.value === oldId) activeId.value = newRelPath
       }
       refreshWorkspace()
       setResultPopup('重命名成功', true)
@@ -552,14 +729,15 @@ const handleSavePopupSure = () => {
     setResultPopup('请输入文件名', false)
     return
   }
-  const newId = fileKey(name, type)
+  const newRelPath = type ? `${name}.${type}` : name
   const oldTabId = tab.id
-  tabs.value = tabs.value.filter((x) => x.id === tab.id || x.id !== newId)
+  tabs.value = tabs.value.filter((x) => x.id === tab.id || x.id !== newRelPath)
 
   tab.name = name
   tab.type = type
-  tab.id = newId
-  activeId.value = newId
+  tab.relPath = newRelPath
+  tab.id = newRelPath
+  activeId.value = newRelPath
 
   window.electronAPI.saveFile(name, type, tab.content, root).then(
     (ok: boolean) => {
@@ -615,9 +793,31 @@ const workspaceLabel = computed(() => {
     <Popup v-model="isShowDeletePopup" title="永久删除文件" width="540px" height="240px" @sure="handleDeletePopupSure">
       <h3>删除后，该文件将不可恢复。确认删除吗？</h3>
       <p v-if="deleteCtxFile" class="delete-name">
-        {{ fileDiskPath(deleteCtxFile.name, deleteCtxFile.type) }}
+        {{ deleteCtxFile.relPath }}
       </p>
       <template #sure-text>确认</template>
+      <template #close-text>取消</template>
+    </Popup>
+
+    <Popup
+      v-model="isShowNewInFolderPopup"
+      title="在文件夹中新建文件"
+      width="640px"
+      height="420px"
+      @sure="handleNewInFolderSure"
+      @close="newInFolderParentRel = ''"
+    >
+      <form class="popup-form" @submit.prevent>
+        <label for="newInFolderName">
+          文件名称：
+          <input id="newInFolderName" v-model="newInFolderFileName" type="text" placeholder="不含扩展名" />
+        </label>
+        <label for="newInFolderType">
+          文件类型：
+          <input id="newInFolderType" v-model="newInFolderFileType" type="text" placeholder="如 html、txt" />
+        </label>
+      </form>
+      <template #sure-text>创建</template>
       <template #close-text>取消</template>
     </Popup>
 
@@ -697,7 +897,11 @@ const workspaceLabel = computed(() => {
             打开系统终端
           </button>
         </template>
-        <template v-else>
+        <template v-else-if="ctxKind === 'folder'">
+          <button type="button" class="ctx-item" @click="ctxNewFileInFolder">新建文件</button>
+          <button type="button" class="ctx-item" @click="ctxOpenFolderInOS">打开文件夹所在位置</button>
+        </template>
+        <template v-else-if="ctxKind === 'file'">
           <button type="button" class="ctx-item" @click="ctxRenameFile">重命名</button>
           <button type="button" class="ctx-item" @click="ctxSaveFile">保存</button>
           <button type="button" class="ctx-item danger" @click="ctxDeleteFile">删除</button>
@@ -713,21 +917,62 @@ const workspaceLabel = computed(() => {
       >
         <div class="sidebar-sub" :title="workspaceLabel">{{ workspaceLabel }}</div>
         <ul class="file-list">
-          <li
-            v-for="f in workspaceFiles"
-            :key="fileKey(f.name, f.type)"
-            class="file-item"
-            :class="{ active: isSidebarFileActive(f) }"
-            @click="openFileInTab(f)"
-            @contextmenu="onFileContextMenu($event, f)"
-          >
-            <span class="file-name">{{ f.name }}</span>
-            <span v-if="f.type" class="file-ext">.{{ f.type }}</span>
-          </li>
-          <li v-if="!workspaceFiles.length && !workspaceRoot" class="file-empty">
+          <template v-for="row in flatExplorerRows" :key="row.kind + ':' + row.relPath">
+            <li
+              v-if="row.kind === 'folder'"
+              class="explorer-row explorer-folder"
+              :style="{ paddingLeft: 6 + row.depth * 16 + 'px' }"
+              @click.stop="toggleFolderExpanded(row.relPath)"
+              @contextmenu.stop.prevent="openFolderCtxMenu($event, row)"
+            >
+              <span class="explorer-chevron-wrap" aria-hidden="true">
+                <svg
+                  class="explorer-chevron"
+                  :class="{ open: expandedFolders.has(row.relPath) }"
+                  viewBox="0 0 16 16"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M6 4l4 4-4 4V4z"
+                  />
+                </svg>
+              </span>
+              <svg class="explorer-icon explorer-icon-folder" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  fill="currentColor"
+                  d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
+                />
+              </svg>
+              <span class="explorer-label" :title="row.name">{{ row.name }}</span>
+            </li>
+            <li
+              v-else
+              class="explorer-row explorer-file file-item"
+              :class="{ active: isSidebarFileActive(row.relPath) }"
+              :style="{ paddingLeft: 6 + row.depth * 16 + 'px' }"
+              @click="openFileInSidebar(row as WorkspaceFileEntry)"
+              @contextmenu="onFileContextMenu($event, row as WorkspaceFileEntry)"
+            >
+              <span class="explorer-chevron-spacer" aria-hidden="true" />
+              <svg class="explorer-icon explorer-icon-file" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  fill="currentColor"
+                  d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"
+                />
+              </svg>
+              <span
+                class="explorer-name-cell"
+                :title="row.type ? `${row.name}.${row.type}` : row.name"
+              >
+                <span class="file-name">{{ row.name }}</span><span v-if="row.type" class="file-ext">.{{ row.type }}</span>
+              </span>
+            </li>
+          </template>
+          <li v-if="!workspaceTree.length && !workspaceRoot" class="file-empty">
             在左侧空白处右键，选择「打开文件夹」或「打开文件」
           </li>
-          <li v-else-if="!workspaceFiles.length" class="file-empty">此文件夹中暂无文件</li>
+          <li v-else-if="!flatExplorerRows.length && workspaceRoot" class="file-empty">此文件夹中暂无文件</li>
         </ul>
       </aside>
 
@@ -751,7 +996,7 @@ const workspaceLabel = computed(() => {
             @click="activeId = tab.id"
           >
             <span v-if="isDirty(tab)" class="dirty-dot" title="未保存">●</span>
-            <span class="tab-label">{{ tabTitle(tab) }}</span>
+            <span class="tab-label" :title="tabTitle(tab)">{{ tabTitle(tab) }}</span>
             <button type="button" class="tab-close" title="关闭" @click.stop="requestCloseTab(tab.id)">×</button>
           </div>
           <!-- <div v-if="!tabs.length" class="tab-placeholder">无打开的文件</div> -->
@@ -787,6 +1032,18 @@ const workspaceLabel = computed(() => {
   font-size: 16px;
   color: var(--light-font-second-color, #626262);
   font-family: consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.new-in-folder-hint {
+  margin: 0 0 12px;
+  font-size: 18px;
+  color: var(--light-font-second-color, #626262);
+  font-family: consolas, monospace;
+  word-break: break-all;
 }
 
 .sticky-note > .popup-container {
@@ -974,10 +1231,11 @@ const workspaceLabel = computed(() => {
   padding: 0 14px 8px;
   font-size: 25px;
   color: var(--light-font-second-color, #626262);
-  word-break: break-all;
-  max-height: 44px;
-  overflow: hidden;
   line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .file-list {
@@ -987,6 +1245,88 @@ const workspaceLabel = computed(() => {
   overflow: auto;
   flex: 1;
   min-height: 0;
+}
+
+.explorer-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  min-width: 0;
+  padding: 6px 10px 6px 0;
+  font-size: 22px;
+  font-family: consolas, Microsoft YaHei, sans-serif;
+  color: var(--light-font-color, #262626);
+  list-style: none;
+}
+
+.explorer-folder {
+  cursor: pointer;
+  user-select: none;
+}
+
+.explorer-folder:hover {
+  background-color: var(--light-item-bgc, #f5f5f5);
+}
+
+.explorer-chevron-wrap {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.explorer-chevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.12s ease;
+  color: var(--light-font-second-color, #666);
+}
+
+.explorer-chevron.open {
+  transform: rotate(90deg);
+}
+
+.explorer-chevron-spacer {
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.explorer-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.explorer-icon-folder {
+  color: #c9a227;
+}
+
+.explorer-icon-file {
+  color: var(--light-svg-main-fill, #888);
+}
+
+.explorer-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.explorer-name-cell {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.explorer-name-cell .file-name,
+.explorer-name-cell .file-ext {
+  font-size: inherit;
 }
 
 .file-item {
@@ -1000,6 +1340,12 @@ const workspaceLabel = computed(() => {
   color: var(--light-font-color, #262626);
 }
 
+.explorer-file.file-item {
+  padding: 8px 10px 8px 0;
+  font-size: 22px;
+  align-items: center;
+}
+
 .file-item:hover {
   background-color: var(--light-item-bgc, #f5f5f5);
 }
@@ -1010,9 +1356,18 @@ const workspaceLabel = computed(() => {
   padding-left: 11px;
 }
 
+.explorer-file.file-item.active {
+  border-left: none;
+  padding-left: 0;
+  box-shadow: inset 3px 0 0 #0078d4;
+}
+
 .file-ext {
   opacity: 0.75;
-  font-size: 25px;
+}
+
+.explorer-file .file-ext {
+  font-size: 22px;
 }
 
 .file-empty {
@@ -1063,12 +1418,12 @@ const workspaceLabel = computed(() => {
   gap: 8px;
   padding: 5px 14px;
   max-width: 260px;
+  min-width: 0;
   font-size: 25px;
   font-family: consolas, Microsoft YaHei;
   color: var(--light-font-second-color, #626262);
   border-right: 1px solid var(--light-option-second-bgc, #ddd);
   cursor: pointer;
-  white-space: nowrap;
   background-color: var(--light-second-bgc, #ececec);
 }
 
@@ -1079,8 +1434,11 @@ const workspaceLabel = computed(() => {
 }
 
 .tab-label {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dirty-dot {
