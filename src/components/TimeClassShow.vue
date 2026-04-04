@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 
 
 interface FormData {
@@ -50,7 +50,14 @@ const cancel = () => {
     emit('cancel')
 }
 
+function onGlobalSaveKey(e: KeyboardEvent) {
+    if (!(e.ctrlKey || e.metaKey) || e.key !== 's') return
+    e.preventDefault()
+    save()
+}
+
 onMounted(() => {
+    document.addEventListener('keydown', onGlobalSaveKey, true)
     container.value?.addEventListener('dragstart', (e: DragEvent) => {
         if (e.dataTransfer && e.target instanceof HTMLElement) {
             if (e.target.dataset) {
@@ -100,6 +107,10 @@ onMounted(() => {
         }
     })
 })
+
+onUnmounted(() => {
+    document.removeEventListener('keydown', onGlobalSaveKey, true)
+})
 </script>
 
 <template>
@@ -109,7 +120,6 @@ onMounted(() => {
                 {{ props.formData.name }}
 
                 <div>
-                    <div @click="save">保存</div>
                     <div @click="cancel">取消</div>
                 </div>
             </div>
@@ -188,10 +198,11 @@ onMounted(() => {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 0 20px;
+    gap: 0 16px;
     font-size: 20px;
     font-weight: 400;
-    width: 200px;
+    min-width: 220px;
+    width: auto;
     height: 100%;
 }
 
@@ -210,6 +221,14 @@ onMounted(() => {
 .time-class-show-content-title>div>div:hover {
     cursor: pointer;
     color: var(--light-svg-main-hover-fill);
+}
+
+.time-class-show-content-title .save-hint {
+    font-size: 16px;
+    color: var(--light-font-second-color, #626262);
+    line-height: 1.2;
+    user-select: none;
+    white-space: nowrap;
 }
 
 .time-class-show-content-main {

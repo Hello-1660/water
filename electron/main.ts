@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Tray, Menu, ipcMain, dialog, screen, globalShortcut } from 'electron'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { UIConfig, SettingConfig } from '../src/config/Config'
 import path from 'node:path'
@@ -226,6 +226,8 @@ async function createNoteWindow() {
 	ipcMain.removeHandler('file:open')
 	ipcMain.removeHandler('file:open-all')
 	ipcMain.removeHandler('file:delete')
+	ipcMain.removeHandler('file:rename')
+	ipcMain.removeHandler('shell:open-terminal-at')
 	ipcMain.removeHandler('dialog:open-directory')
 	ipcMain.removeHandler('dialog:open-file')
 	ipcMain.removeHandler('sticky:get-last-workspace')
@@ -288,6 +290,20 @@ async function createNoteWindow() {
 
 	ipcMain.handle('file:delete', async (_, name: string, dir: string = DATADIR) => {
 		return await deleteFile(name, dir)
+	})
+
+	ipcMain.handle(
+		'file:rename',
+		async (_, oldRel: string, newName: string, newType: string, dir: string = DATADIR): Promise<boolean> => {
+			return await renameWorkspaceFile(dir, oldRel, newName, newType)
+		}
+	)
+
+	ipcMain.handle('shell:open-terminal-at', async (_, folderPath: string): Promise<boolean> => {
+		const abs = resolveWorkspaceDir(folderPath)
+		if (!(await isFolderExist(abs))) return false
+		openTerminalAtFolder(abs)
+		return true
 	})
 
 	ipcMain.handle('dialog:open-directory', async (event) => {
@@ -811,7 +827,78 @@ function deleteFile(name: string, dir: string = DATADIR): Promise<boolean> {
 			reject(false)
 		}
 	})
-} 
+}
+
+const INVALID_WIN_FILENAME = /[\\/:*?"<>|]/
+
+async function renameWorkspaceFile(
+	dir: string,
+	oldRel: string,
+	newName: string,
+	newType: string
+): Promise<boolean> {
+	try {
+		const root = resolveWorkspaceDir(dir)
+		const trimmed = newName.trim()
+		if (!trimmed || INVALID_WIN_FILENAME.test(trimmed)) return false
+		const ext = newType.trim()
+		const newBase = ext ? `${trimmed}.${ext}` : trimmed
+		const oldPath = path.join(root, oldRel)
+		const newPath = path.join(root, newBase)
+		if (path.normalize(oldPath) === path.normalize(newPath)) return true
+		if (!(await isFileExist(oldPath))) return false
+		if (await isFileExist(newPath)) return false
+		await fs.rename(oldPath, newPath)
+		return true
+	} catch {
+		return false
+	}
+}
+
+function openTerminalAtFolder(absDir: string): void {
+	if (process.platform === 'win32') {
+		// Electron 是无控制台进程，直接 spawn cmd/powershell + detached 往往不会出现窗口。
+		// 经「cmd /c start …」启动才会新建可见控制台（与资源管理器「在此处打开终端」一致）。
+		const dirForCmd = absDir.replace(/"/g, '""')
+		const psLiteral = absDir.replace(/'/g, "''")
+		const opts = { detached: true, stdio: 'ignore' as const, windowsHide: false }
+
+		const startVisibleCmd = () =>
+			spawn('cmd.exe', ['/c', 'start', '', 'cmd', '/k', `cd /d "${dirForCmd}"`], opts).unref()
+
+		const wt = spawn('wt.exe', ['-d', absDir], opts)
+		wt.on('error', () => {
+			// 未安装 Windows Terminal：用 start 拉起 PowerShell；失败再退回 cmd
+			const viaStartPs = spawn(
+				'cmd.exe',
+				[
+					'/c',
+					'start',
+					'',
+					'powershell.exe',
+					'-NoExit',
+					'-NoProfile',
+					'-Command',
+					`Set-Location -LiteralPath '${psLiteral}'`,
+				],
+				opts
+			)
+			viaStartPs.on('error', () => startVisibleCmd())
+			viaStartPs.unref()
+		})
+		wt.unref()
+		return
+	}
+	if (process.platform === 'darwin') {
+		spawn('open', ['-a', 'Terminal', absDir], { detached: true, stdio: 'ignore' }).unref()
+		return
+	}
+	const child = spawn('gnome-terminal', ['--working-directory', absDir], {
+		detached: true,
+		stdio: 'ignore',
+	})
+	child.unref()
+}
 
 
 

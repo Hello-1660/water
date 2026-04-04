@@ -37,6 +37,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	openAllFiles: (dir: String = DATADIR): Promise<{name: string, type: string}[]> => ipcRenderer.invoke('file:open-all', dir),
 	// 删除文件
 	deleteFile: (name: string, dir: string = DATADIR): Promise<boolean> => ipcRenderer.invoke('file:delete', name, dir),
+	// 工作区内重命名文件（oldRel 为磁盘相对名，如 note.html）
+	renameWorkspaceFile: (
+		oldRel: string,
+		newName: string,
+		newType: string,
+		dir: string = DATADIR
+	): Promise<boolean> => ipcRenderer.invoke('file:rename', oldRel, newName, newType, dir),
+	// 在系统终端中打开指定文件夹
+	openTerminalAt: (folderPath: string): Promise<boolean> =>
+		ipcRenderer.invoke('shell:open-terminal-at', folderPath),
 	// 便签：选择文件夹
 	pickWorkspaceFolder: (): Promise<string | null> => ipcRenderer.invoke('dialog:open-directory'),
 	// 便签：选择单个文件（返回目录用于作为工作区）
@@ -71,6 +81,8 @@ declare global {
 			openFile: (name: string, dir: string) => Promise<string>
 			openAllFiles: (dir: String) => Promise<{name: string, type: string}[]>
 			deleteFile: (name: string, dir: string) => Promise<boolean>
+			renameWorkspaceFile: (oldRel: string, newName: string, newType: string, dir: string) => Promise<boolean>
+			openTerminalAt: (folderPath: string) => Promise<boolean>
 			pickWorkspaceFolder: () => Promise<string | null>
 			pickFileToOpen: () => Promise<{
 				fullPath: string

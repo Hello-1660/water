@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import Popup from './Popup.vue'
-import { ref, watch, nextTick, onUnmounted } from 'vue'
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps<{
     htmlContent: string
@@ -226,10 +226,6 @@ watch(
     { immediate: true }
 )
 
-onUnmounted(() => {
-    abortCtl?.abort()
-})
-
 function saveChanges() {
     const root = mountEl.value
     if (!root) return
@@ -238,6 +234,22 @@ function saveChanges() {
     if (!html) return
     emit('save', { name: props.name, html })
 }
+
+function onGlobalSaveKey(e: KeyboardEvent) {
+    if (isShowPopup.value) return
+    if (!(e.ctrlKey || e.metaKey) || e.key !== 's') return
+    e.preventDefault()
+    saveChanges()
+}
+
+onMounted(() => {
+    document.addEventListener('keydown', onGlobalSaveKey, true)
+})
+
+onUnmounted(() => {
+    document.removeEventListener('keydown', onGlobalSaveKey, true)
+    abortCtl?.abort()
+})
 </script>
 
 <template>
@@ -271,7 +283,6 @@ function saveChanges() {
                 </div>
 
                 <div class="top-actions">
-                    <div class="action-btn save-btn" @click="saveChanges">保存修改</div>
                     <div class="action-btn del-btn" @click="isShowPopup = true">
                         <svg
                             t="1769695779738"
@@ -358,8 +369,11 @@ function saveChanges() {
     color: var(--light-svg-main-hover-fill);
 }
 
-.save-btn {
-    width: auto !important;
+.save-hint {
+    font-size: 16px;
+    color: var(--light-font-second-color, #626262);
+    user-select: none;
+    white-space: nowrap;
 }
 
 .del-btn {

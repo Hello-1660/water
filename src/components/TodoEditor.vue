@@ -201,7 +201,6 @@ const handleSavePopupDel = () => {
 
         <div class="todo-editor-main">
             <div class="toolbar">
-                <button type="button" class="btn-save" @click="openSavePopup">保存</button>
                 <span v-if="isDirty" class="dirty-hint">未保存</span>
                 <span v-else-if="currentTodo.name" class="saved-hint">已保存</span>
             </div>
@@ -268,18 +267,9 @@ const handleSavePopupDel = () => {
     min-height: 40px;
 }
 
-.btn-save {
-    padding: 8px 22px;
-    font-size: 22px;
-    border-radius: 10px;
-    border: 1px solid var(--light-option-second-bgc, #e0e0e0);
-    background: var(--light-main-bgc, #f9f9f9);
-    color: var(--light-font-color, #262626);
-    cursor: pointer;
-}
-
-.btn-save:hover {
-    background: var(--light-item-bgc, #f5f5f5);
+.save-hint {
+    font-size: 18px;
+    color: var(--light-font-second-color, #626262);
 }
 
 .dirty-hint {

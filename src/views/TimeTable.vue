@@ -2,7 +2,7 @@
 import TimeClassShow from '../components/TimeClassShow.vue'
 import TimeTableShow from '../components/TimeTableShow.vue'
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 
 
 const TIMETABLE_DIR = 'timeTable'
@@ -11,10 +11,11 @@ const TIMETABLE_FILE_TABLE = 'html'
 
 
 
-const saveTable = (name: string, content: string) => {
-    window.electronAPI.saveFile(name, TIMETABLE_FILE_TABLE, content, TIMETABLE_DIR).then(
-        data => console.log('saveTable', data)
-    )
+const saveTable = (name: string, content: string): Promise<boolean> => {
+    return window.electronAPI
+        .saveFile(name, TIMETABLE_FILE_TABLE, content, TIMETABLE_DIR)
+        .then((data) => Boolean(data))
+        .catch(() => false)
 }
 
 
@@ -91,9 +92,25 @@ const itemAdd = computed(() => {
     }
 })
 
-const handleSave = (data: any) => {
-    saveTable(itemAdd.value.name, data.outerHTML)
-    getTableList(() => isShow.value = 0)
+const resultColor = ref(false)
+const isShowResultPopup = ref(false)
+const resultPopupContent = ref('')
+
+const setResultPopup = async (content: string, color: boolean) => {
+    isShowResultPopup.value = false
+    resultPopupContent.value = content
+    resultColor.value = color
+    await nextTick()
+    isShowResultPopup.value = true
+    setTimeout(() => {
+        isShowResultPopup.value = false
+    }, 2500)
+}
+
+const handleSave = async (data: any) => {
+    const ok = await saveTable(itemAdd.value.name, data.outerHTML)
+    setResultPopup(ok ? '保存成功' : '保存失败', ok)
+    if (ok) getTableList(() => (isShow.value = 0))
 }
 
 const handleCancel = () => {
@@ -149,9 +166,10 @@ const handleDel = (data: string) => {
     }, 200)
 }
 
-const handleSaveView = (payload: { name: string; html: string }) => {
-    saveTable(payload.name, payload.html)
-    htmlContent.value = payload.html
+const handleSaveView = async (payload: { name: string; html: string }) => {
+    const ok = await saveTable(payload.name, payload.html)
+    setResultPopup(ok ? '保存成功' : '保存失败', ok)
+    if (ok) htmlContent.value = payload.html
 }
 
 onMounted(() => {
@@ -160,7 +178,17 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="container">
+    <div class="container tt-page">
+        <div
+            :id="resultColor ? 'green' : 'red'"
+            class="popup-container"
+            :class="{ tip: isShowResultPopup }"
+            v-if="isShowResultPopup"
+        >
+            <div class="img"></div>
+            <div class="content">{{ resultPopupContent }}</div>
+        </div>
+
         <div v-if="isShow === 0" class="show-table-list">
             <ul>
                 <li class="add" @click="add">
@@ -629,5 +657,64 @@ input[type="time"]::-webkit-datetime-edit-minute-field {
 .show-current-table {
     width: 100%;
     height: 100%;
+}
+
+.tt-page > .popup-container {
+    position: fixed;
+    left: 50%;
+    bottom: 20%;
+    z-index: 10000;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-sizing: border-box;
+    border-radius: 10px;
+    height: 68px;
+    background-color: rgb(251, 246, 246);
+    padding: 6px;
+    opacity: 0;
+    user-select: none;
+}
+
+.tt-page > .popup-container.tip {
+    animation: tt-save-tip 2.5s ease;
+}
+
+@keyframes tt-save-tip {
+    0% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0%);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-400%);
+    }
+}
+
+.tt-page > .popup-container#red {
+    background-color: rgb(255, 141, 131);
+}
+
+.tt-page > .popup-container#green {
+    background-color: rgb(152, 243, 207);
+}
+
+.tt-page > .popup-container > .img {
+    width: 50px;
+    height: 50px;
+    background-image: url(../../public/water.jpg);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 15px;
+    margin-left: 5px;
+}
+
+.tt-page > .popup-container > .content {
+    margin: 0 12px 0 22px;
+    font-size: 26px;
+    color: white;
 }
 </style>

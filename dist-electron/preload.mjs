@@ -34,6 +34,10 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
   openAllFiles: (dir = DATADIR) => electron.ipcRenderer.invoke("file:open-all", dir),
   // 删除文件
   deleteFile: (name, dir = DATADIR) => electron.ipcRenderer.invoke("file:delete", name, dir),
+  // 工作区内重命名文件（oldRel 为磁盘相对名，如 note.html）
+  renameWorkspaceFile: (oldRel, newName, newType, dir = DATADIR) => electron.ipcRenderer.invoke("file:rename", oldRel, newName, newType, dir),
+  // 在系统终端中打开指定文件夹
+  openTerminalAt: (folderPath) => electron.ipcRenderer.invoke("shell:open-terminal-at", folderPath),
   // 便签：选择文件夹
   pickWorkspaceFolder: () => electron.ipcRenderer.invoke("dialog:open-directory"),
   // 便签：选择单个文件（返回目录用于作为工作区）

@@ -606,12 +606,13 @@ watch(
   caret-color: var(--light-caret-color, #3d4a6b);
   background-color: var(--light-todo-editor-bgc, #f9f9f9);
   color: var(--light-font-color);
+  font-family: Consolas, 'Microsoft YaHei', monospace;
 }
 
 /* 勿对 pre/code 写 color:inherit，会压掉 github/github-dark 里各 token 的颜色 */
 .editor-content :deep(.tiptap-editor-inner pre) {
   margin: 0;
-  font-family: consolas, monospace;
+  font-family: Consolas, 'Microsoft YaHei', monospace;
   white-space: pre-wrap;
   word-break: break-word;
   background: transparent !important;

@@ -2,7 +2,7 @@ var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, screen, dialog } from "electron";
-import { execFileSync } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs/promises";
@@ -178,6 +178,8 @@ async function createNoteWindow() {
   ipcMain.removeHandler("file:open");
   ipcMain.removeHandler("file:open-all");
   ipcMain.removeHandler("file:delete");
+  ipcMain.removeHandler("file:rename");
+  ipcMain.removeHandler("shell:open-terminal-at");
   ipcMain.removeHandler("dialog:open-directory");
   ipcMain.removeHandler("dialog:open-file");
   ipcMain.removeHandler("sticky:get-last-workspace");
@@ -223,6 +225,18 @@ async function createNoteWindow() {
   });
   ipcMain.handle("file:delete", async (_, name, dir = DATADIR) => {
     return await deleteFile(name, dir);
+  });
+  ipcMain.handle(
+    "file:rename",
+    async (_, oldRel, newName, newType, dir = DATADIR) => {
+      return await renameWorkspaceFile(dir, oldRel, newName, newType);
+    }
+  );
+  ipcMain.handle("shell:open-terminal-at", async (_, folderPath) => {
+    const abs = resolveWorkspaceDir(folderPath);
+    if (!await isFolderExist(abs)) return false;
+    openTerminalAtFolder(abs);
+    return true;
   });
   ipcMain.handle("dialog:open-directory", async (event) => {
     const win2 = BrowserWindow.fromWebContents(event.sender);
@@ -612,6 +626,63 @@ function deleteFile(name, dir = DATADIR) {
       reject(false);
     }
   });
+}
+const INVALID_WIN_FILENAME = /[\\/:*?"<>|]/;
+async function renameWorkspaceFile(dir, oldRel, newName, newType) {
+  try {
+    const root = resolveWorkspaceDir(dir);
+    const trimmed = newName.trim();
+    if (!trimmed || INVALID_WIN_FILENAME.test(trimmed)) return false;
+    const ext = newType.trim();
+    const newBase = ext ? `${trimmed}.${ext}` : trimmed;
+    const oldPath = path.join(root, oldRel);
+    const newPath = path.join(root, newBase);
+    if (path.normalize(oldPath) === path.normalize(newPath)) return true;
+    if (!await isFileExist(oldPath)) return false;
+    if (await isFileExist(newPath)) return false;
+    await fs.rename(oldPath, newPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function openTerminalAtFolder(absDir) {
+  if (process.platform === "win32") {
+    const dirForCmd = absDir.replace(/"/g, '""');
+    const psLiteral = absDir.replace(/'/g, "''");
+    const opts = { detached: true, stdio: "ignore", windowsHide: false };
+    const startVisibleCmd = () => spawn("cmd.exe", ["/c", "start", "", "cmd", "/k", `cd /d "${dirForCmd}"`], opts).unref();
+    const wt = spawn("wt.exe", ["-d", absDir], opts);
+    wt.on("error", () => {
+      const viaStartPs = spawn(
+        "cmd.exe",
+        [
+          "/c",
+          "start",
+          "",
+          "powershell.exe",
+          "-NoExit",
+          "-NoProfile",
+          "-Command",
+          `Set-Location -LiteralPath '${psLiteral}'`
+        ],
+        opts
+      );
+      viaStartPs.on("error", () => startVisibleCmd());
+      viaStartPs.unref();
+    });
+    wt.unref();
+    return;
+  }
+  if (process.platform === "darwin") {
+    spawn("open", ["-a", "Terminal", absDir], { detached: true, stdio: "ignore" }).unref();
+    return;
+  }
+  const child = spawn("gnome-terminal", ["--working-directory", absDir], {
+    detached: true,
+    stdio: "ignore"
+  });
+  child.unref();
 }
 const createTray = () => {
   if (tray) return;

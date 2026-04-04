@@ -411,6 +411,27 @@ function ctxDeleteFile() {
   isShowDeletePopup.value = true
 }
 
+function ctxRenameFile() {
+  const f = ctxFile.value
+  closeContextMenu()
+  if (!f) return
+  renameCtxFile.value = f
+  renamePopupFileName.value = f.name
+  renamePopupFileType.value = f.type || ''
+  isShowRenamePopup.value = true
+}
+
+async function ctxOpenTerminalHere() {
+  const root = workspaceRoot.value
+  closeContextMenu()
+  if (!root) return
+  try {
+    await window.electronAPI.openTerminalAt(root)
+  } catch {
+    /* ignore */
+  }
+}
+
 const onDocPointerDown = (e: MouseEvent) => {
   const t = e.target as HTMLElement
   if (t.closest('.ctx-menu')) return
@@ -434,6 +455,10 @@ onUnmounted(() => {
 })
 
 const isShowDeletePopup = ref(false)
+const isShowRenamePopup = ref(false)
+const renameCtxFile = ref<WorkspaceFile | null>(null)
+const renamePopupFileName = ref('')
+const renamePopupFileType = ref('')
 const isShowSavePopup = ref(false)
 const savePopupFileName = ref('')
 const savePopupFileType = ref('txt')
@@ -468,6 +493,50 @@ const handleDeletePopupSure = () => {
 watch(isShowDeletePopup, (open) => {
   if (!open) deleteCtxFile.value = null
 })
+
+const handleRenamePopupSure = () => {
+  const f = renameCtxFile.value
+  const root = workspaceRoot.value
+  if (!f || !root) {
+    isShowRenamePopup.value = false
+    renameCtxFile.value = null
+    return
+  }
+  const name = renamePopupFileName.value.trim()
+  const type = renamePopupFileType.value.trim()
+  if (!name) {
+    setResultPopup('请输入文件名', false)
+    return
+  }
+  const oldRel = fileDiskPath(f.name, f.type)
+  const oldId = fileKey(f.name, f.type)
+  const newId = fileKey(name, type)
+
+  window.electronAPI
+    .renameWorkspaceFile(oldRel, name, type, root)
+    .then((ok: boolean) => {
+      if (!ok) {
+        setResultPopup('重命名失败（名称无效或已存在同名文件）', false)
+        return
+      }
+      const tab = tabs.value.find((t) => t.id === oldId)
+      if (tab) {
+        tab.name = name
+        tab.type = type
+        tab.id = newId
+        if (activeId.value === oldId) activeId.value = newId
+      }
+      refreshWorkspace()
+      setResultPopup('重命名成功', true)
+      isShowRenamePopup.value = false
+      renameCtxFile.value = null
+    })
+    .catch(() => {
+      setResultPopup('重命名失败', false)
+      isShowRenamePopup.value = false
+      renameCtxFile.value = null
+    })
+}
 
 const handleSavePopupSure = () => {
   const root = workspaceRoot.value
@@ -552,6 +621,28 @@ const workspaceLabel = computed(() => {
       <template #close-text>取消</template>
     </Popup>
 
+    <Popup
+      v-model="isShowRenamePopup"
+      title="重命名文件"
+      width="640px"
+      height="420px"
+      @sure="handleRenamePopupSure"
+      @close="renameCtxFile = null"
+    >
+      <form class="popup-form" @submit.prevent>
+        <label for="renameFileName">
+          文件名称：
+          <input id="renameFileName" v-model="renamePopupFileName" type="text" placeholder="请输入文件名" />
+        </label>
+        <label for="renameFileType">
+          扩展名（可留空）：
+          <input id="renameFileType" v-model="renamePopupFileType" type="text" placeholder="如 html、txt" />
+        </label>
+      </form>
+      <template #sure-text>确认</template>
+      <template #close-text>取消</template>
+    </Popup>
+
     <Popup v-model="isShowSavePopup" title="保存文件" width="640px" height="420px" @sure="handleSavePopupSure">
       <form class="popup-form" @submit.prevent>
         <label for="fileName">
@@ -602,8 +693,12 @@ const workspaceLabel = computed(() => {
           <button type="button" class="ctx-item" @click="ctxOpenFile">打开文件…</button>
           <button type="button" class="ctx-item" @click="ctxNewFile">新建文件</button>
           <button type="button" class="ctx-item" :disabled="!workspaceRoot" @click="ctxRefresh">刷新</button>
+          <button type="button" class="ctx-item" :disabled="!workspaceRoot" @click="ctxOpenTerminalHere">
+            打开系统终端
+          </button>
         </template>
         <template v-else>
+          <button type="button" class="ctx-item" @click="ctxRenameFile">重命名</button>
           <button type="button" class="ctx-item" @click="ctxSaveFile">保存</button>
           <button type="button" class="ctx-item danger" @click="ctxDeleteFile">删除</button>
         </template>
