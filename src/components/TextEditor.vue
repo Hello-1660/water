@@ -39,7 +39,12 @@ const appIsDark = computed(() => Boolean(settingContent.value.setting.dark))
 
 let syncingFromParent = false
 
-const fontSize = ref(34)
+const FONT_MIN = 20
+const FONT_MAX = 100
+const FONT_STEP = 5
+const FONT_RESET = 34
+
+const fontSize = ref(FONT_RESET)
 
 /** 使用全量语法集，避免扩展名映射到未注册语言时无装饰、看起来像没高亮 */
 const lowlight = createLowlight(all)
@@ -59,11 +64,40 @@ function attachHljsTheme(dark: boolean) {
   hljsThemeLink = link
 }
 
+/**
+ * 阻止 Chromium / Electron 对 Ctrl/Cmd +/-/0 的「整页缩放」。
+ * 必须在捕获阶段只调用 preventDefault，勿 stopPropagation，以便 TipTap 仍能收到同一按键调整字号。
+ * 带 Alt 的组合（如 Ctrl+Alt+=）不在此拦截，作为字号快捷键的备用。
+ */
+function preventBrowserPageZoom(e: KeyboardEvent) {
+  const mod = e.ctrlKey || e.metaKey
+  if (!mod) return
+  if (e.altKey) return
+
+  const { code } = e
+  const { key } = e
+  const isZoomIn =
+    code === 'Equal' ||
+    code === 'NumpadAdd' ||
+    key === '+' ||
+    key === '='
+  const isZoomOut = code === 'Minus' || code === 'NumpadSubtract' || key === '-'
+  const isZoomReset = !e.shiftKey && (code === 'Digit0' || code === 'Numpad0')
+
+  if (isZoomIn || isZoomOut || isZoomReset) {
+    e.preventDefault()
+  }
+}
+
 onMounted(() => {
   attachHljsTheme(appIsDark.value)
+  window.addEventListener('keydown', preventBrowserPageZoom, true)
 })
 watch(appIsDark, (dark) => attachHljsTheme(dark))
-onUnmounted(() => hljsThemeLink?.remove())
+onUnmounted(() => {
+  hljsThemeLink?.remove()
+  window.removeEventListener('keydown', preventBrowserPageZoom, true)
+})
 
 function resolveHljsLanguage(lang: string): string {
   return hljs.getLanguage(lang) ? lang : 'plaintext'
@@ -412,37 +446,43 @@ const CodeBlockTabBindings = Extension.create({
   },
 })
 
-const FontZoomKeys = Extension.create({
-  name: 'fontZoomKeys',
-  addKeyboardShortcuts() {
-    return {
-      'Mod-Equal': () => {
-        fontSize.value = Math.min(120, fontSize.value + 5)
-        return true
-      },
-      'Mod-NumpadAdd': () => {
-        fontSize.value = Math.min(120, fontSize.value + 5)
-        return true
-      },
-      'Mod-Minus': () => {
-        if (fontSize.value > 20) fontSize.value -= 5
-        return true
-      },
-      'Mod-NumpadSubtract': () => {
-        if (fontSize.value > 20) fontSize.value -= 5
-        return true
-      },
-      'Mod-0': () => {
-        fontSize.value = 34
-        return true
-      },
-      'Mod-Numpad0': () => {
-        fontSize.value = 34
-        return true
-      },
-    }
-  },
-})
+function zoomFontIn(): boolean {
+  fontSize.value = Math.min(FONT_MAX, fontSize.value + FONT_STEP)
+  return true
+}
+
+function zoomFontOut(): boolean {
+  fontSize.value = Math.max(FONT_MIN, fontSize.value - FONT_STEP)
+  return true
+}
+
+/** 字号快捷键放在 handleKeyDown 里用 event.code 判断：TipTap 里 `Mod-Minus` 不会匹配主键盘减号（应为 `Mod--`），容易只有放大无缩小。 */
+function handleFontZoomKeyDown(event: KeyboardEvent): boolean {
+  const mod = event.ctrlKey || event.metaKey
+  if (!mod) return false
+
+  const isZoomOut = event.code === 'Minus' || event.code === 'NumpadSubtract'
+  const isZoomIn = event.code === 'Equal' || event.code === 'NumpadAdd'
+  const isReset =
+    !event.shiftKey && (event.code === 'Digit0' || event.code === 'Numpad0')
+
+  if (isZoomOut) {
+    event.preventDefault()
+    zoomFontOut()
+    return true
+  }
+  if (isZoomIn) {
+    event.preventDefault()
+    zoomFontIn()
+    return true
+  }
+  if (isReset) {
+    event.preventDefault()
+    fontSize.value = FONT_RESET
+    return true
+  }
+  return false
+}
 
 const editor = useEditor({
   extensions: [
@@ -464,7 +504,6 @@ const editor = useEditor({
     MarkdownDataImageDeleteKeys,
     PasteImageAsMarkdown,
     CodeBlockTabBindings,
-    FontZoomKeys,
   ],
   content: buildDoc('', 'plaintext'),
   editorProps: {
@@ -473,6 +512,8 @@ const editor = useEditor({
       spellcheck: 'false',
     },
     handleKeyDown(view, event) {
+      if (handleFontZoomKeyDown(event)) return true
+
       const { state } = view
       const { $from } = state.selection
       const inCode = $from.parent.type.name === 'codeBlock'

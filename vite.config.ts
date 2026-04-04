@@ -31,7 +31,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
-        note: path.resolve(__dirname, 'note.html')
+        note: path.resolve(__dirname, 'note.html'),
+        scratch: path.resolve(__dirname, 'scratch.html'),
       }
     }
   }

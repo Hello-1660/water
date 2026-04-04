@@ -16,6 +16,8 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
   minNoteWindow: () => electron.ipcRenderer.invoke("window:min-note-window"),
   // 恢复待办事项窗口
   restoreNoteWindow: () => electron.ipcRenderer.invoke("window:restore-note-window"),
+  // 关闭快捷键弹出的草稿编辑窗
+  closeScratchWindow: () => electron.ipcRenderer.invoke("window:close-scratch"),
   // 读取配置文件
   getConfig: (path) => electron.ipcRenderer.invoke("config:get", path),
   // 修改配置文件

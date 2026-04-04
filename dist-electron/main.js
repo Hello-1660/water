@@ -1,7 +1,8 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-import { app, BrowserWindow, Tray, Menu, ipcMain, screen, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, screen, dialog } from "electron";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs/promises";
@@ -15,6 +16,44 @@ class SettingConfig {
   constructor(parseConfig) {
     __publicField(this, "setting");
     this.setting = parseConfig.setting;
+  }
+}
+const SWP_NOSIZE = 1;
+const SWP_NOMOVE = 2;
+const SWP_NOACTIVATE = 16;
+const SWP_NOZORDER_BOTTOM = SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE;
+function sendWin32ClockWindowToBack(w) {
+  const handleBuf = w.getNativeWindowHandle();
+  const hwnd = handleBuf.length >= 8 ? Number(handleBuf.readBigUInt64LE(0)) : handleBuf.readUInt32LE(0);
+  const ps = [
+    'Add-Type @"',
+    "using System;",
+    "using System.Runtime.InteropServices;",
+    "public class Z {",
+    '[DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr a, int x, int y, int cx, int cy, uint f);',
+    "}",
+    '"@',
+    `[Z]::SetWindowPos([IntPtr]${hwnd}, [IntPtr]1, 0, 0, 0, 0, ${SWP_NOZORDER_BOTTOM})`
+  ].join("\r\n");
+  const encoded = Buffer.from(ps, "utf16le").toString("base64");
+  execFileSync("powershell.exe", ["-NoProfile", "-WindowStyle", "Hidden", "-EncodedCommand", encoded], {
+    windowsHide: true,
+    timeout: 1e4,
+    stdio: "ignore"
+  });
+}
+function showClockWindowBehindOthers() {
+  if (!win) return;
+  win.showInactive();
+  if (process.platform === "win32") {
+    setImmediate(() => {
+      if (!(win == null ? void 0 : win.isVisible())) return;
+      try {
+        sendWin32ClockWindowToBack(win);
+      } catch (e) {
+        console.error("sendWin32ClockWindowToBack:", e);
+      }
+    });
   }
 }
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
@@ -54,6 +93,7 @@ async function createWindow() {
     transparent: true,
     show: false,
     skipTaskbar: true,
+    focusable: false,
     webPreferences: {
       preload: path.join(MAIN_DIST, "preload.mjs"),
       nodeIntegration: false,
@@ -95,7 +135,7 @@ async function createWindow() {
     win.loadFile(path.join(RENDERER_DIST, "index.html"));
   }
   win.on("ready-to-show", () => {
-    win == null ? void 0 : win.show();
+    showClockWindowBehindOthers();
   });
 }
 async function createNoteWindow() {
@@ -123,11 +163,13 @@ async function createNoteWindow() {
   } else {
     noteWin.loadFile(path.join(RENDERER_DIST, "note.html"));
   }
-  noteWin.webContents.on("before-input-event", (event, input) => {
-    if (input.control && ["=", "-", "0"].includes(input.key)) {
-      event.preventDefault();
+  const resetNotePageZoom = () => {
+    if (noteWin && !noteWin.isDestroyed()) {
+      noteWin.webContents.setZoomFactor(1);
     }
-  });
+  };
+  noteWin.webContents.on("did-finish-load", resetNotePageZoom);
+  noteWin.webContents.on("zoom-changed", resetNotePageZoom);
   ipcMain.removeHandler("window:close-note-window");
   ipcMain.removeHandler("window:max-note-window");
   ipcMain.removeHandler("window:min-note-window");
@@ -249,6 +291,44 @@ app.on("activate", () => {
   }
 });
 app.commandLine.appendSwitch("no-default-window");
+const SCRATCH_HOTKEY = "CommandOrControl+Shift+N";
+function createScratchEditorWindow() {
+  const scratchWin = new BrowserWindow({
+    width: 750,
+    height: 800,
+    show: false,
+    frame: false,
+    icon: path.join(process.env.VITE_PUBLIC, "water.ico"),
+    webPreferences: {
+      preload: path.join(MAIN_DIST, "preload.mjs"),
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+  if (VITE_DEV_SERVER_URL) {
+    scratchWin.loadURL(`${VITE_DEV_SERVER_URL}/scratch.html`);
+  } else {
+    scratchWin.loadFile(path.join(RENDERER_DIST, "scratch.html"));
+  }
+  const resetScratchPageZoom = () => {
+    if (!scratchWin.isDestroyed()) {
+      scratchWin.webContents.setZoomFactor(1);
+    }
+  };
+  scratchWin.webContents.on("did-finish-load", resetScratchPageZoom);
+  scratchWin.webContents.on("zoom-changed", resetScratchPageZoom);
+  scratchWin.once("ready-to-show", () => {
+    scratchWin.show();
+  });
+}
+function registerScratchHotkey() {
+  const ok = globalShortcut.register(SCRATCH_HOTKEY, () => {
+    createScratchEditorWindow();
+  });
+  if (!ok) {
+    console.error("全局快捷键注册失败:", SCRATCH_HOTKEY);
+  }
+}
 app.whenReady().then(async () => {
   var _a;
   await createAppDataDir();
@@ -265,11 +345,19 @@ app.whenReady().then(async () => {
       openAsHidden: true
     });
   }
+  ipcMain.handle("window:close-scratch", (event) => {
+    const w = BrowserWindow.fromWebContents(event.sender);
+    if (w && !w.isDestroyed()) w.close();
+  });
   createNoteWindow();
+  registerScratchHotkey();
   if ((_a = setting == null ? void 0 : setting.setting) == null ? void 0 : _a.showClock) {
     createWindow();
     noteWin == null ? void 0 : noteWin.hide();
   }
+});
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
 });
 async function storagePosition(path2) {
   const uiConfig = await readConfig(path2);
@@ -537,7 +625,7 @@ const createTray = () => {
         if (win.isVisible()) {
           win.hide();
         } else {
-          win.show();
+          showClockWindowBehindOthers();
         }
       }
     },
@@ -555,7 +643,7 @@ const createTray = () => {
     if (win.isVisible()) {
       win.hide();
     } else {
-      win.show();
+      showClockWindowBehindOthers();
     }
   });
 };

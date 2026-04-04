@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	minNoteWindow: (): Promise<void> => ipcRenderer.invoke('window:min-note-window'),
 	// 恢复待办事项窗口
 	restoreNoteWindow: (): Promise<void> => ipcRenderer.invoke('window:restore-note-window'),
+	// 关闭快捷键弹出的草稿编辑窗
+	closeScratchWindow: (): Promise<void> => ipcRenderer.invoke('window:close-scratch'),
 	// 读取配置文件
 	getConfig: (path: string): Promise<UIConfig> => ipcRenderer.invoke('config:get', path),
 	// 修改配置文件
@@ -60,6 +62,7 @@ declare global {
 			maxNoteWindow: () => Promise<void>
 			minNoteWindow: () => Promise<void>
 			restoreNoteWindow: () => Promise<void>
+			closeScratchWindow: () => Promise<void>
 			getConfig: (path: string) => Promise<UIConfig>
 			setConfig: (path: string, config: any) => Promise<boolean>
 			getSetting: (path: string) => Promise<SettingConfig>

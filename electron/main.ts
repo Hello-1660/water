@@ -1,8 +1,54 @@
-import { app, BrowserWindow, Tray, Menu, ipcMain, dialog, screen } from 'electron'
+import { app, BrowserWindow, Tray, Menu, ipcMain, dialog, screen, globalShortcut } from 'electron'
+import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { UIConfig, SettingConfig } from '../src/config/Config'
 import path from 'node:path'
 import fs from 'node:fs/promises'
+
+/** 主时钟窗口：不抢焦点、尽量叠在普通窗口之下（Windows 用 SetWindowPos） */
+const SWP_NOSIZE = 0x0001
+const SWP_NOMOVE = 0x0002
+const SWP_NOACTIVATE = 0x0010
+const SWP_NOZORDER_BOTTOM = SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE
+
+function sendWin32ClockWindowToBack(w: BrowserWindow) {
+	const handleBuf = w.getNativeWindowHandle()
+	const hwnd =
+		handleBuf.length >= 8
+			? Number(handleBuf.readBigUInt64LE(0))
+			: handleBuf.readUInt32LE(0)
+	const ps = [
+		'Add-Type @"',
+		'using System;',
+		'using System.Runtime.InteropServices;',
+		'public class Z {',
+		'[DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr a, int x, int y, int cx, int cy, uint f);',
+		'}',
+		'"@',
+		`[Z]::SetWindowPos([IntPtr]${hwnd}, [IntPtr]1, 0, 0, 0, 0, ${SWP_NOZORDER_BOTTOM})`,
+	].join('\r\n')
+	const encoded = Buffer.from(ps, 'utf16le').toString('base64')
+	execFileSync('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-EncodedCommand', encoded], {
+		windowsHide: true,
+		timeout: 10000,
+		stdio: 'ignore',
+	})
+}
+
+function showClockWindowBehindOthers() {
+	if (!win) return
+	win.showInactive()
+	if (process.platform === 'win32') {
+		setImmediate(() => {
+			if (!win?.isVisible()) return
+			try {
+				sendWin32ClockWindowToBack(win)
+			} catch (e) {
+				console.error('sendWin32ClockWindowToBack:', e)
+			}
+		})
+	}
+}
 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -71,6 +117,7 @@ async function createWindow() {
 		transparent: true,
 		show: false,
 		skipTaskbar: true,
+		focusable: false,
 		webPreferences: {
 			preload: path.join(MAIN_DIST, 'preload.mjs'),
 			nodeIntegration: false,
@@ -125,7 +172,7 @@ async function createWindow() {
 	}
 
 	win.on('ready-to-show', () => {
-		win?.show()
+		showClockWindowBehindOthers()
 	})
 }
 
@@ -159,14 +206,17 @@ async function createNoteWindow() {
 		noteWin.loadFile(path.join(RENDERER_DIST, 'note.html'))
 	}
 
+	const resetNotePageZoom = (): void => {
+		if (noteWin && !noteWin.isDestroyed()) {
+			noteWin.webContents.setZoomFactor(1)
+		}
+	}
+	noteWin.webContents.on('did-finish-load', resetNotePageZoom)
+	noteWin.webContents.on('zoom-changed', resetNotePageZoom)
 
-	noteWin.webContents.on('before-input-event', (event, input) => {
-    	// 拦截 Ctrl++ / Ctrl+- / Ctrl+0 这三个缩放快捷键
-    	if (input.control && ['=', '-', '0'].includes(input.key)) {
-      		event.preventDefault() // 阻止Electron默认缩放行为
-    	}
-  	})
-	
+	// 不在此用 before-input-event 拦截 Ctrl+/-/0：preventDefault 会导致按键无法进入渲染进程，TipTap 字号快捷键失效。
+	// 页面缩放由渲染层 keydown capture + 必要时 setZoomFactor(1) 处理。
+
 	// 先移除，避免报错
 	ipcMain.removeHandler('window:close-note-window')
 	ipcMain.removeHandler('window:max-note-window')
@@ -328,6 +378,50 @@ app.on('activate', () => {
 
 app.commandLine.appendSwitch('no-default-window')
 
+const SCRATCH_HOTKEY = 'CommandOrControl+Shift+N'
+
+function createScratchEditorWindow(): void {
+	const scratchWin = new BrowserWindow({
+		width: 750,
+		height: 800,
+		show: false,
+		frame: false,
+		icon: path.join(process.env.VITE_PUBLIC, 'water.ico'),
+		webPreferences: {
+			preload: path.join(MAIN_DIST, 'preload.mjs'),
+			nodeIntegration: false,
+			contextIsolation: true,
+		},
+	})
+
+	if (VITE_DEV_SERVER_URL) {
+		scratchWin.loadURL(`${VITE_DEV_SERVER_URL}/scratch.html`)
+	} else {
+		scratchWin.loadFile(path.join(RENDERER_DIST, 'scratch.html'))
+	}
+
+	const resetScratchPageZoom = (): void => {
+		if (!scratchWin.isDestroyed()) {
+			scratchWin.webContents.setZoomFactor(1)
+		}
+	}
+	scratchWin.webContents.on('did-finish-load', resetScratchPageZoom)
+	scratchWin.webContents.on('zoom-changed', resetScratchPageZoom)
+
+	scratchWin.once('ready-to-show', () => {
+		scratchWin.show()
+	})
+}
+
+function registerScratchHotkey(): void {
+	const ok = globalShortcut.register(SCRATCH_HOTKEY, () => {
+		createScratchEditorWindow()
+	})
+	if (!ok) {
+		console.error('全局快捷键注册失败:', SCRATCH_HOTKEY)
+	}
+}
+
 app.whenReady().then(async () => {
 	await createAppDataDir()
 	await createAppDataDir(TODODIR)
@@ -348,7 +442,14 @@ app.whenReady().then(async () => {
 		})
 	}
 
+	ipcMain.handle('window:close-scratch', (event) => {
+		const w = BrowserWindow.fromWebContents(event.sender)
+		if (w && !w.isDestroyed()) w.close()
+	})
+
 	createNoteWindow()
+	registerScratchHotkey()
+
 	if (setting?.setting?.showClock) {
 		createWindow()
 		noteWin?.hide()
@@ -356,6 +457,10 @@ app.whenReady().then(async () => {
 		// 添加静默检查
 		
 	}
+})
+
+app.on('will-quit', () => {
+	globalShortcut.unregisterAll()
 })
 
 
@@ -730,7 +835,7 @@ const createTray = () => {
                 if (win.isVisible()) {
                     win.hide()
                 } else {
-                    win.show()
+                    showClockWindowBehindOthers()
                 }
             }
         },
@@ -756,7 +861,7 @@ const createTray = () => {
         if (win.isVisible()) {
             win.hide()
         } else {
-            win.show()
+            showClockWindowBehindOthers()
         }
     })
 }
