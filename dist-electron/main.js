@@ -1,7 +1,7 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-import { app, BrowserWindow, Tray, Menu, ipcMain } from "electron";
+import { app, BrowserWindow, Tray, Menu, ipcMain, dialog } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs/promises";
@@ -134,6 +134,10 @@ async function createNoteWindow() {
   ipcMain.removeHandler("file:open");
   ipcMain.removeHandler("file:open-all");
   ipcMain.removeHandler("file:delete");
+  ipcMain.removeHandler("dialog:open-directory");
+  ipcMain.removeHandler("dialog:open-file");
+  ipcMain.removeHandler("sticky:get-last-workspace");
+  ipcMain.removeHandler("sticky:set-last-workspace");
   ipcMain.removeHandler("setting:get");
   ipcMain.removeHandler("config:get");
   ipcMain.removeHandler("setting:set");
@@ -166,6 +170,39 @@ async function createNoteWindow() {
   });
   ipcMain.handle("file:delete", async (_, name, dir = DATADIR) => {
     return await deleteFile(name, dir);
+  });
+  ipcMain.handle("dialog:open-directory", async (event) => {
+    const win2 = BrowserWindow.fromWebContents(event.sender);
+    if (!win2) return null;
+    const { canceled, filePaths } = await dialog.showOpenDialog(win2, {
+      properties: ["openDirectory", "createDirectory"]
+    });
+    if (canceled || !filePaths[0]) return null;
+    return filePaths[0];
+  });
+  ipcMain.handle("dialog:open-file", async (event) => {
+    const win2 = BrowserWindow.fromWebContents(event.sender);
+    if (!win2) return null;
+    const { canceled, filePaths } = await dialog.showOpenDialog(win2, {
+      properties: ["openFile"]
+    });
+    if (canceled || !filePaths[0]) return null;
+    const fullPath = filePaths[0];
+    const parsed = path.parse(fullPath);
+    const ext = parsed.ext ? parsed.ext.slice(1) : "";
+    const type = ext || "txt";
+    return {
+      fullPath,
+      dir: parsed.dir,
+      name: parsed.name,
+      type
+    };
+  });
+  ipcMain.handle("sticky:get-last-workspace", async () => {
+    return await readStickyLastFolder();
+  });
+  ipcMain.handle("sticky:set-last-workspace", async (_, folder) => {
+    await writeStickyLastFolder(folder);
   });
   ipcMain.handle("setting:get", async (_, p) => {
     if (!isDev) p = path.join(getInstallSiblingDir(), "setting.json");
@@ -392,10 +429,40 @@ async function createAppDataDir(dir = DATADIR) {
     await fs.mkdir(appDataDir, { recursive: true });
   }
 }
+function resolveWorkspaceDir(dir) {
+  if (!dir) {
+    return path.join(getInstallSiblingDir(), DATADIR);
+  }
+  if (path.isAbsolute(dir)) {
+    return dir;
+  }
+  return path.join(getInstallSiblingDir(), dir);
+}
+function getStickyWorkspaceJsonPath() {
+  return path.join(app.getPath("userData"), "sticky-workspace.json");
+}
+async function readStickyLastFolder() {
+  try {
+    const raw = await fs.readFile(getStickyWorkspaceJsonPath(), "utf-8");
+    const j = JSON.parse(raw);
+    if (typeof j.folder === "string" && j.folder.length > 0) {
+      if (await isFolderExist(j.folder)) return j.folder;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+async function writeStickyLastFolder(folder) {
+  const payload = JSON.stringify({ folder: folder ?? null }, null, 2);
+  await fs.writeFile(getStickyWorkspaceJsonPath(), payload, "utf-8");
+}
 function saveFile(name, type, file, dir = DATADIR) {
   return new Promise(async (resolve, reject) => {
     try {
-      const savePath = path.join(getInstallSiblingDir(), dir, name + "." + type);
+      const root = resolveWorkspaceDir(dir);
+      const base = type ? `${name}.${type}` : name;
+      const savePath = path.join(root, base);
       await fs.writeFile(savePath, file, { encoding: "utf8" });
       resolve(true);
     } catch (error) {
@@ -407,7 +474,8 @@ function saveFile(name, type, file, dir = DATADIR) {
 function getFile(name, dir = DATADIR) {
   return new Promise(async (resolve, reject) => {
     try {
-      const filePath = path.join(getInstallSiblingDir(), dir, name);
+      const root = resolveWorkspaceDir(dir);
+      const filePath = path.join(root, name);
       const data = await fs.readFile(filePath, "utf-8");
       resolve(data);
     } catch (error) {
@@ -418,19 +486,16 @@ function getFile(name, dir = DATADIR) {
 function getAllFileList(dir = DATADIR) {
   return new Promise(async (resolve, reject) => {
     try {
-      const filePath = path.join(getInstallSiblingDir(), dir);
+      const filePath = resolveWorkspaceDir(dir);
       const dirents = await fs.readdir(filePath, { withFileTypes: true });
-      const fileList = await Promise.all(
-        dirents.filter((dirent) => dirent.isFile()).map(async (dirent) => {
-          const data = dirent.name.split(".");
-          const name = data[0];
-          const type = data[1];
-          return {
-            name,
-            type
-          };
-        })
-      );
+      const fileList = dirents.filter((dirent) => dirent.isFile()).map((dirent) => {
+        const parsed = path.parse(dirent.name);
+        const ext = parsed.ext ? parsed.ext.slice(1) : "";
+        return {
+          name: parsed.name,
+          type: ext
+        };
+      });
       resolve(fileList);
     } catch (error) {
       reject([]);
@@ -440,7 +505,8 @@ function getAllFileList(dir = DATADIR) {
 function deleteFile(name, dir = DATADIR) {
   return new Promise(async (resolve, reject) => {
     try {
-      const filePath = path.join(getInstallSiblingDir(), dir, name);
+      const root = resolveWorkspaceDir(dir);
+      const filePath = path.join(root, name);
       await fs.unlink(filePath);
       resolve(true);
     } catch (error) {

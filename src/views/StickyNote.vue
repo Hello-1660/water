@@ -1,555 +1,1105 @@
 <script setup lang="ts">
 import TextEditor from '../components/TextEditor.vue'
-import Button from '../components/Button.vue'
 import Popup from '../components/Popup.vue'
-import Select from '../components/Select.vue'
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { highlightLanguageFromExtension } from '../utils/highlightLanguageFromExt'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 
-
-const DATADIR = 'data'
-// const TEXT = 'txt'
 const HTML = 'html'
-// const JSON = 'json'
-const SELECTWIDTHSIZE = 0.25
 
-const theme = ref('light')
-const initTheme = computed(() => theme.value !== 'light')
-const initSelectValue = computed(() => currentFile.value.name)
-const isShowAll = ref(false)
+const SIDEBAR_WIDTH_STORAGE_KEY = 'sticky-sidebar-width'
+const SIDEBAR_WIDTH_DEFAULT = 300
+const SIDEBAR_WIDTH_MIN = 180
+const SIDEBAR_WIDTH_MAX = 720
 
-const editor = ref<HTMLDivElement | undefined>()
-const func = ref<HTMLDivElement | undefined>()
-const currentFile = ref<any>({
+function clampSidebarWidth(px: number) {
+  return Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, Math.round(px)))
+}
+
+function readStoredSidebarWidth(): number {
+  try {
+    const raw = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
+    if (raw == null) return SIDEBAR_WIDTH_DEFAULT
+    const n = Number.parseInt(raw, 10)
+    if (Number.isNaN(n)) return SIDEBAR_WIDTH_DEFAULT
+    return clampSidebarWidth(n)
+  } catch {
+    return SIDEBAR_WIDTH_DEFAULT
+  }
+}
+
+const sidebarWidthPx = ref(readStoredSidebarWidth())
+const sidebarResizing = ref(false)
+let resizeStartX = 0
+let resizeStartW = 0
+
+function persistSidebarWidth() {
+  try {
+    localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidthPx.value))
+  } catch {
+    /* ignore */
+  }
+}
+
+function onSidebarResizeMove(e: MouseEvent) {
+  if (!sidebarResizing.value) return
+  const delta = e.clientX - resizeStartX
+  sidebarWidthPx.value = clampSidebarWidth(resizeStartW + delta)
+}
+
+function endSidebarResize() {
+  if (!sidebarResizing.value) return
+  sidebarResizing.value = false
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+  window.removeEventListener('mousemove', onSidebarResizeMove)
+  window.removeEventListener('mouseup', endSidebarResize)
+  persistSidebarWidth()
+}
+
+function onSidebarResizeStart(e: MouseEvent) {
+  if (e.button !== 0) return
+  e.preventDefault()
+  sidebarResizing.value = true
+  resizeStartX = e.clientX
+  resizeStartW = sidebarWidthPx.value
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+  window.addEventListener('mousemove', onSidebarResizeMove)
+  window.addEventListener('mouseup', endSidebarResize)
+}
+
+function onSidebarResizerDblClick() {
+  sidebarWidthPx.value = SIDEBAR_WIDTH_DEFAULT
+  persistSidebarWidth()
+}
+
+/** 当前工作区根目录（绝对路径），不再使用固定 data 目录 */
+const workspaceRoot = ref<string | null>(null)
+
+interface WorkspaceFile {
+  name: string
+  type: string
+}
+
+interface EditorTab {
+  id: string
+  name: string
+  type: string
+  content: string
+  savedContent: string
+}
+
+const workspaceFiles = ref<WorkspaceFile[]>([])
+const tabs = ref<EditorTab[]>([])
+const activeId = ref<string | null>(null)
+let untitledSeq = 0
+
+const activeTab = computed(() => tabs.value.find((t) => t.id === activeId.value) ?? null)
+
+function fileKey(name: string, type: string) {
+  return `${name}:${type}`
+}
+
+/** 与主进程 path.parse 一致：无扩展名时不要用尾部的「.」 */
+function fileDiskPath(name: string, type: string) {
+  return type ? `${name}.${type}` : name
+}
+
+function isDirty(tab: EditorTab) {
+  return tab.content !== tab.savedContent
+}
+
+function tabTitle(tab: EditorTab) {
+  if (!tab.name) return '未命名'
+  return tab.type ? `${tab.name}.${tab.type}` : tab.name
+}
+
+async function persistWorkspace(folder: string | null) {
+  workspaceRoot.value = folder
+  await window.electronAPI.stickySetLastWorkspace(folder)
+}
+
+function refreshWorkspace() {
+  const root = workspaceRoot.value
+  if (!root) {
+    workspaceFiles.value = []
+    return
+  }
+  window.electronAPI.openAllFiles(root).then((data) => {
+    workspaceFiles.value = data ?? []
+  })
+}
+
+async function chooseOpenFolder() {
+  const picked = await window.electronAPI.pickWorkspaceFolder()
+  if (!picked) return
+  await persistWorkspace(picked)
+  refreshWorkspace()
+  setResultPopup('已打开文件夹', true)
+}
+
+async function chooseOpenFile() {
+  const picked = await window.electronAPI.pickFileToOpen()
+  if (!picked) return
+  await persistWorkspace(picked.dir)
+  refreshWorkspace()
+  await openFileFromParts(picked.name, picked.type)
+  setResultPopup('已打开文件', true)
+}
+
+async function openFileFromParts(name: string, type: string) {
+  const root = workspaceRoot.value
+  if (!root) return
+  const id = fileKey(name, type)
+  const existing = tabs.value.find((t) => t.id === id)
+  if (existing) {
+    activeId.value = id
+    return
+  }
+  let content = ''
+  try {
+    const raw = await window.electronAPI.openFile(fileDiskPath(name, type), root)
+    content = typeof raw === 'string' ? raw : ''
+  } catch {
+    setResultPopup('读取文件失败', false)
+    return
+  }
+  tabs.value.push({
+    id,
+    name,
+    type,
+    content,
+    savedContent: content,
+  })
+  activeId.value = id
+}
+
+async function openFileInTab(entry: WorkspaceFile) {
+  await openFileFromParts(entry.name, entry.type)
+}
+
+function newUntitled() {
+  untitledSeq += 1
+  const id = `untitled-${untitledSeq}`
+  tabs.value.push({
+    id,
     name: '',
     type: HTML,
-})
-
-
-const fileData = ref<any>({
-    type: 'text',
-    content: ''
-})
-
-
-
-
-
-const updateShowAll = () => {
-    if (!func.value) return
-    if (!editor.value) return
-
-    func.value.style.height = isShowAll.value ? '10%' : '30px'
-    editor.value.style.height = isShowAll.value ? '90%' : '100%'
-
-    isShowAll.value = !isShowAll.value
+    content: '',
+    savedContent: '',
+  })
+  activeId.value = id
 }
 
-const updateTheme = (value: boolean) => {
-    if (value) {
-        theme.value = 'dark'
-    } else {
-        theme.value = 'light'
+function onEditorUpdate(v: string) {
+  const t = tabs.value.find((x) => x.id === activeId.value)
+  if (t) t.content = v
+}
+
+const saveTargetTabId = ref<string | null>(null)
+const pendingCloseAfterSaveId = ref<string | null>(null)
+
+function openSaveDialog() {
+  if (!workspaceRoot.value) {
+    setResultPopup('请先通过右键菜单「打开文件夹」选择工作区', false)
+    return
+  }
+  const t = activeTab.value
+  if (!t) return
+  saveTargetTabId.value = t.id
+  savePopupFileName.value = t.name
+  savePopupFileType.value = t.type || HTML
+  isShowSavePopup.value = true
+}
+
+async function saveTabToDisk(tab: EditorTab): Promise<boolean> {
+  const root = workspaceRoot.value
+  if (!tab.name || !root) return false
+  try {
+    const ok = await window.electronAPI.saveFile(tab.name, tab.type, tab.content, root)
+    if (ok) {
+      tab.savedContent = tab.content
+      refreshWorkspace()
     }
+    return ok
+  } catch {
+    return false
+  }
 }
 
-// const handleSave = (save: any) => {
-//     if (save.msg === 'success') {
-//         let saveData = ''
-//         if (currentFile.value.type === HTML) {
-//             saveData = save.data.html
-//         } else if (currentFile.value.type === JSON) { 
-//             saveData = save.data.json
-//         } else if (currentFile.value.type === TEXT) { 
-//             saveData = save.data.text
-//         } else { 
-//             saveData = save.data.text
-//         }
-
-//         fileData.value.content = saveData
-//         if (currentFile.value.name !== '') {
-//             saveFile(currentFile.value.name, currentFile.value.type, (data: boolean) => {
-//                 const msg = data ? '保存成功' : '保存失败'
-//                 setResultPopup(msg, data)
-//             })
-//             return 
-//         }
-
-//         isShowSavePopup.value = true
-//     }
-// }
-
-
-const saveFile = (name: string, type: string, func: Function) => {
-    return window.electronAPI.saveFile(name, type, fileData.value.content, DATADIR).then(
-        data => func(data)
-    )
+async function saveActive() {
+  const t = activeTab.value
+  if (!t) return
+  if (!workspaceRoot.value) {
+    setResultPopup('请先打开文件夹', false)
+    return
+  }
+  if (!t.name) {
+    openSaveDialog()
+    return
+  }
+  const ok = await saveTabToDisk(t)
+  setResultPopup(ok ? '保存成功' : '保存失败', ok)
 }
 
-
-const openFile = (name: string, type: string, func: Function) => {
-    const file = name + '.' + type
-    window.electronAPI.openFile(file, DATADIR).then(
-        data => func(data)
-    )
+function doCloseTab(id: string) {
+  const idx = tabs.value.findIndex((x) => x.id === id)
+  if (idx === -1) return
+  const wasActive = activeId.value === id
+  tabs.value.splice(idx, 1)
+  if (wasActive) {
+    activeId.value = tabs.value[idx]?.id ?? tabs.value[idx - 1]?.id ?? null
+  }
+  showCloseDirty.value = false
+  closeDirtyTabId.value = null
 }
 
+const showCloseDirty = ref(false)
+const closeDirtyTabId = ref<string | null>(null)
 
-const deleteFile = (name: string, type: string, func: Function) => {
-    window.electronAPI.deleteFile(name + '.' + type, DATADIR).then(
-        data => func(data)
-    )
+function requestCloseTab(id: string) {
+  const tab = tabs.value.find((x) => x.id === id)
+  if (!tab) return
+  if (isDirty(tab)) {
+    closeDirtyTabId.value = id
+    showCloseDirty.value = true
+    return
+  }
+  doCloseTab(id)
 }
 
-
-const openAllFiles = () => {
-    window.electronAPI.openAllFiles(DATADIR).then(
-        data => selectValues.value = data
-    )
+async function closeDirtySave() {
+  const id = closeDirtyTabId.value
+  if (!id) return
+  const tab = tabs.value.find((x) => x.id === id)
+  if (!tab) return
+  if (!workspaceRoot.value) {
+    setResultPopup('请先打开文件夹', false)
+    return
+  }
+  if (!tab.name) {
+    showCloseDirty.value = false
+    pendingCloseAfterSaveId.value = id
+    saveTargetTabId.value = id
+    savePopupFileName.value = tab.name
+    savePopupFileType.value = tab.type || HTML
+    isShowSavePopup.value = true
+    return
+  }
+  const ok = await saveTabToDisk(tab)
+  if (ok) doCloseTab(id)
+  else setResultPopup('保存失败', false)
 }
 
-
-const selectWith = ref('350px')
-
-const handleWidthChange = () => {
-    if (func.value) {
-        const newWidth = func.value.style.width || getComputedStyle(func.value).width
-        selectWith.value = parseInt(newWidth, 10) * SELECTWIDTHSIZE + 'px'
-    }
+function closeDirtyDiscard() {
+  const id = closeDirtyTabId.value
+  if (!id) return
+  doCloseTab(id)
 }
 
-const handleCurrentFile = (data: SelectValue) => {
-    currentFile.value.name = data.name
-    currentFile.value.type = data.type
-
-    openFile(currentFile.value.name, currentFile.value.type, (data: string) => {
-        fileData.value.type = currentFile.value.type
-        fileData.value.content = data
-    })
+function closeDirtyCancel() {
+  showCloseDirty.value = false
+  closeDirtyTabId.value = null
 }
 
-let resizeObserver: ResizeObserver | null = null
-onMounted(() => {
-    if (func.value) {
-        resizeObserver = new ResizeObserver(handleWidthChange)
-        resizeObserver.observe(func.value)
-
-        handleWidthChange()
-    }
-})
-
-interface SelectValue {
-    name: string,
-    type: string
+const isSidebarFileActive = (f: WorkspaceFile) => {
+  const t = activeTab.value
+  return !!t && t.name === f.name && t.type === f.type
 }
 
-
-const addFile = () => {
-    currentFile.value.name = ''
-    fileData.value.content = ''
+const onGlobalKeydown = (e: KeyboardEvent) => {
+  if (e.defaultPrevented) return
+  if (e.ctrlKey && (e.key === 's' || e.key === 'S')) {
+    e.preventDefault()
+    saveActive()
+  }
 }
 
-const deleteFileEvent = () => {
-    isShowDeletePopup.value = true
+/** ---- 右键菜单（类似 VS Code 资源管理器）---- */
+type CtxKind = 'root' | 'file'
+
+const ctxVisible = ref(false)
+const ctxX = ref(0)
+const ctxY = ref(0)
+const ctxKind = ref<CtxKind>('root')
+const ctxFile = ref<WorkspaceFile | null>(null)
+
+function closeContextMenu() {
+  ctxVisible.value = false
+  ctxFile.value = null
 }
 
+function openCtxAt(e: MouseEvent, kind: CtxKind, file: WorkspaceFile | null) {
+  e.preventDefault()
+  ctxKind.value = kind
+  ctxFile.value = file
+  ctxVisible.value = true
+  ctxX.value = e.clientX
+  ctxY.value = e.clientY
+  nextTick(() => {
+    const el = document.querySelector('.ctx-menu') as HTMLElement | null
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const pad = 8
+    let x = e.clientX
+    let y = e.clientY
+    if (x + rect.width > window.innerWidth - pad) x = window.innerWidth - rect.width - pad
+    if (y + rect.height > window.innerHeight - pad) y = window.innerHeight - rect.height - pad
+    ctxX.value = Math.max(pad, x)
+    ctxY.value = Math.max(pad, y)
+  })
+}
 
-const selectValues = ref<SelectValue[]>()
-onMounted(() => {
-    openAllFiles()
+function onRootContextMenu(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (target.closest('.file-item')) return
+  openCtxAt(e, 'root', null)
+}
+
+function onFileContextMenu(e: MouseEvent, f: WorkspaceFile) {
+  openCtxAt(e, 'file', f)
+}
+
+async function ctxOpenFolder() {
+  closeContextMenu()
+  await chooseOpenFolder()
+}
+
+async function ctxOpenFile() {
+  closeContextMenu()
+  await chooseOpenFile()
+}
+
+function ctxRefresh() {
+  closeContextMenu()
+  refreshWorkspace()
+}
+
+function ctxNewFile() {
+  closeContextMenu()
+  newUntitled()
+}
+
+async function ctxSaveFile() {
+  const f = ctxFile.value
+  closeContextMenu()
+  if (!f || !workspaceRoot.value) {
+    setResultPopup('请先打开文件夹', false)
+    return
+  }
+  const id = fileKey(f.name, f.type)
+  const tab = tabs.value.find((t) => t.id === id)
+  if (!tab) {
+    setResultPopup('请先在编辑器中打开该文件', false)
+    return
+  }
+  if (!isDirty(tab)) {
+    setResultPopup('没有需要保存的更改', true)
+    return
+  }
+  const ok = await saveTabToDisk(tab)
+  setResultPopup(ok ? '保存成功' : '保存失败', ok)
+}
+
+const deleteCtxFile = ref<WorkspaceFile | null>(null)
+
+function ctxDeleteFile() {
+  const f = ctxFile.value
+  closeContextMenu()
+  if (!f) return
+  deleteCtxFile.value = f
+  isShowDeletePopup.value = true
+}
+
+const onDocPointerDown = (e: MouseEvent) => {
+  const t = e.target as HTMLElement
+  if (t.closest('.ctx-menu')) return
+  closeContextMenu()
+}
+
+onMounted(async () => {
+  const last = await window.electronAPI.stickyGetLastWorkspace()
+  if (last) {
+    workspaceRoot.value = last
+    refreshWorkspace()
+  }
+  window.addEventListener('keydown', onGlobalKeydown)
+  document.addEventListener('mousedown', onDocPointerDown)
 })
 
 onUnmounted(() => {
-    if (resizeObserver) {
-        resizeObserver.disconnect()
-        resizeObserver = null
-    }
+  window.removeEventListener('keydown', onGlobalKeydown)
+  document.removeEventListener('mousedown', onDocPointerDown)
+  endSidebarResize()
 })
-
-
-
 
 const isShowDeletePopup = ref(false)
 const isShowSavePopup = ref(false)
-
-
-const handleDeletePopupSure = () => {
-    deleteFile(currentFile.value.name, currentFile.value.type, (data: boolean) => {
-        openAllFiles()
-        addFile()
-
-        const msg = data ? '删除成功' : '删除失败'
-        setResultPopup(msg, data)
-    })
-}
-
-
 const savePopupFileName = ref('')
 const savePopupFileType = ref('txt')
-const handleSavePopupSure = () => {
-    saveFile(savePopupFileName.value, savePopupFileType.value, (data: boolean) => {
-        openAllFiles()
-        
-        currentFile.value.name = savePopupFileName.value
-        currentFile.value.type = savePopupFileType.value
 
-        savePopupFileName.value = ''
-        const msg = data ? '保存成功' : '保存失败'
-        setResultPopup(msg, data)
+const handleDeletePopupSure = () => {
+  const f = deleteCtxFile.value
+  if (!f || !workspaceRoot.value) {
+    isShowDeletePopup.value = false
+    deleteCtxFile.value = null
+    return
+  }
+  window.electronAPI
+    .deleteFile(fileDiskPath(f.name, f.type), workspaceRoot.value)
+    .then((data: boolean) => {
+      refreshWorkspace()
+      if (data) {
+        const id = fileKey(f.name, f.type)
+        const open = tabs.value.find((t) => t.id === id)
+        if (open) doCloseTab(id)
+      }
+      setResultPopup(data ? '删除成功' : '删除失败', data)
+      isShowDeletePopup.value = false
+      deleteCtxFile.value = null
+    })
+    .catch(() => {
+      setResultPopup('删除失败', false)
+      isShowDeletePopup.value = false
+      deleteCtxFile.value = null
     })
 }
 
+watch(isShowDeletePopup, (open) => {
+  if (!open) deleteCtxFile.value = null
+})
+
+const handleSavePopupSure = () => {
+  const root = workspaceRoot.value
+  const id = saveTargetTabId.value
+  const tab = tabs.value.find((x) => x.id === id)
+  if (!tab || !root) {
+    isShowSavePopup.value = false
+    return
+  }
+  const name = savePopupFileName.value.trim()
+  const type = savePopupFileType.value.trim() || HTML
+  if (!name) {
+    setResultPopup('请输入文件名', false)
+    return
+  }
+  const newId = fileKey(name, type)
+  const oldTabId = tab.id
+  tabs.value = tabs.value.filter((x) => x.id === tab.id || x.id !== newId)
+
+  tab.name = name
+  tab.type = type
+  tab.id = newId
+  activeId.value = newId
+
+  window.electronAPI.saveFile(name, type, tab.content, root).then(
+    (ok: boolean) => {
+      if (ok) {
+        tab.savedContent = tab.content
+        refreshWorkspace()
+      }
+      savePopupFileName.value = ''
+      isShowSavePopup.value = false
+      setResultPopup(ok ? '保存成功' : '保存失败', ok)
+
+      const pend = pendingCloseAfterSaveId.value
+      if (ok && pend === oldTabId) {
+        pendingCloseAfterSaveId.value = null
+        doCloseTab(tab.id)
+      }
+    },
+    () => {
+      savePopupFileName.value = ''
+      isShowSavePopup.value = false
+      setResultPopup('保存失败', false)
+    }
+  )
+}
 
 const isShowResultPopup = ref(false)
 const resultPopupContent = ref('')
 const resultColor = ref(false)
 
 const setResultPopup = async (content: string, color: boolean) => {
+  isShowResultPopup.value = false
+  resultPopupContent.value = content
+  resultColor.value = color
+  await nextTick()
+  isShowResultPopup.value = true
+  setTimeout(() => {
     isShowResultPopup.value = false
-
-    resultPopupContent.value = content
-    resultColor.value = color
-
-    await nextTick()
-
-    isShowResultPopup.value = true
-    setTimeout(() => {
-        isShowResultPopup.value = false;
-    }, 2500)
+  }, 2500)
 }
 
+const closeDirtyTab = computed(() =>
+  closeDirtyTabId.value ? tabs.value.find((t) => t.id === closeDirtyTabId.value) : null
+)
 
-
+const workspaceLabel = computed(() => {
+  if (!workspaceRoot.value) return '未打开文件夹（在左侧空白处右键）'
+  return workspaceRoot.value
+})
 </script>
 
-
 <template>
-    <div class="sticky-note">
-        <Popup ref="popupRef" v-model="isShowDeletePopup" title="永久删除文件" width="500px" height="210px"
-            @sure="handleDeletePopupSure">
-            <h3>删除后，该文件将不可恢复。确认删除吗？</h3>
-            <template #sure-text>
-                确认
-            </template>
-            <template #close-text>
-                取消
-            </template>
-        </Popup>
+  <div class="sticky-note">
+    <Popup v-model="isShowDeletePopup" title="永久删除文件" width="540px" height="240px" @sure="handleDeletePopupSure">
+      <h3>删除后，该文件将不可恢复。确认删除吗？</h3>
+      <p v-if="deleteCtxFile" class="delete-name">
+        {{ fileDiskPath(deleteCtxFile.name, deleteCtxFile.type) }}
+      </p>
+      <template #sure-text>确认</template>
+      <template #close-text>取消</template>
+    </Popup>
 
-        <Popup ref="popupRef" v-model="isShowSavePopup" title="保存文件" width="600px" height="380px"
-            @sure="handleSavePopupSure">
-            <form class="popup-form">
-                <label for="fileName">
-                    文件名称：
-                    <input type="text" v-model="savePopupFileName" id="fileName" placeholder="请输入文件名"></input>
-                </label>
+    <Popup v-model="isShowSavePopup" title="保存文件" width="640px" height="420px" @sure="handleSavePopupSure">
+      <form class="popup-form" @submit.prevent>
+        <label for="fileName">
+          文件名称：
+          <input id="fileName" v-model="savePopupFileName" type="text" placeholder="请输入文件名" />
+        </label>
+        <label for="fileType">
+          文件类型：
+          <input id="fileType" v-model="savePopupFileType" type="text" placeholder="如 html、txt" />
+        </label>
+      </form>
+      <template #sure-text>确认</template>
+      <template #close-text>取消</template>
+    </Popup>
 
-                <label for="fileType">
-                    文件类型：
-                    <input type="text" v-model="savePopupFileType" id="fileType" placeholder="请输入文件类型"></input>
-                </label>
-            </form>
-            <template #sure-text>
-                确认
-            </template>
-            <template #close-text>
-                取消
-            </template>
-        </Popup>
-
-        <div :id="resultColor ? 'green' : 'red'"  class="popup-container" :class="{'tip' : isShowResultPopup}" v-if="isShowResultPopup">
-            <div class="img"></div>
-            <div class="content">{{ resultPopupContent }}</div>
-        </div>
-
-        <div class="func" ref="func">
-            <div v-if="!isShowAll" class="func-main">
-                <div class="search">
-                    <Select :width="selectWith" :select-values="selectValues" @data="handleCurrentFile"
-                        :initSelectValue="initSelectValue" />
-                </div>
-
-                <div class="delete option" v-show="currentFile.name !== ''" @click="deleteFileEvent">
-                    <svg t="1769254219486" class="icon" viewBox="0 0 1024 1024" version="1.1"
-                        xmlns="http://www.w3.org/2000/svg" p-id="10396">
-                        <path
-                            d="M781.28 851.36a58.56 58.56 0 0 1-58.56 58.56H301.28a58.72 58.72 0 0 1-58.56-58.56V230.4h538.56z m-421.6-725.92a11.84 11.84 0 0 1 12-12h281.28a11.84 11.84 0 0 1 12 12V160H359.68zM956.8 160H734.72v-34.56a81.76 81.76 0 0 0-81.76-81.76H371.68a82.08 82.08 0 0 0-81.76 81.76V160H67.2a35.36 35.36 0 0 0 0 70.56h105.12v620.8a128.96 128.96 0 0 0 128.96 128.96h421.44a128.96 128.96 0 0 0 128.96-128.96V230.4H956.8a35.2 35.2 0 0 0 35.2-35.2 34.56 34.56 0 0 0-35.2-35.2zM512 804.16a35.2 35.2 0 0 0 35.2-35.36V393.92a35.2 35.2 0 1 0-70.4 0V768.8a35.2 35.2 0 0 0 35.2 35.36m-164.32 0a35.36 35.36 0 0 0 35.36-35.36V393.92a35.36 35.36 0 1 0-70.56 0V768.8a36.32 36.32 0 0 0 35.2 35.36m328.64 0a35.36 35.36 0 0 0 35.2-35.36V393.92a35.36 35.36 0 1 0-70.56 0V768.8a35.36 35.36 0 0 0 35.36 35.36"
-                            p-id="10397"></path>
-                    </svg>
-                </div>
-
-                <div class="add option" @click="addFile">
-                    <svg t="1769252361102" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
-                        p-id="9390">
-                        <path
-                            d="M594.04 959.5H142.31c-41.14 0-74.6-33.46-74.6-74.6V367.47c0-21.18 17.17-38.36 38.36-38.36s38.36 17.17 38.36 38.36v515.32h449.62c21.18 0 38.36 17.17 38.36 38.36-0.01 21.18-17.18 38.35-38.37 38.35zM783.71 569.26c-21.18 0-38.36-17.17-38.36-38.36V141.21H365.4c-21.18 0-38.36-17.17-38.36-38.36S344.22 64.5 365.4 64.5h382.07c41.14 0 74.6 33.46 74.6 74.6v391.8c0 21.19-17.18 38.36-38.36 38.36z m-36.24-428.05h0.12-0.12z"
-                            p-id="9391"></path>
-                        <path
-                            d="M360.67 438.06H130.53c-21.18 0-38.36-17.17-38.36-38.36s17.17-38.36 38.36-38.36h230.14c21.18 0 38.36 17.17 38.36 38.36s-17.18 38.36-38.36 38.36zM917.93 824.76h-268.5c-21.18 0-38.36-17.17-38.36-38.36 0-21.18 17.17-38.36 38.36-38.36h268.5c21.18 0 38.36 17.17 38.36 38.36 0 21.19-17.18 38.36-38.36 38.36z"
-                            p-id="9392"></path>
-                        <path
-                            d="M783.68 959.01c-21.18 0-38.36-17.17-38.36-38.36v-268.5c0-21.18 17.17-38.36 38.36-38.36 21.18 0 38.36 17.17 38.36 38.36v268.5c0 21.19-17.18 38.36-38.36 38.36zM364.04 437.23c-21.18 0-38.36-17.17-38.36-38.36V110.64c0-21.18 17.17-38.36 38.36-38.36 21.18 0 38.36 17.17 38.36 38.36v288.23c0 21.19-17.17 38.36-38.36 38.36z"
-                            p-id="9393"></path>
-                        <path
-                            d="M106.24 398.98c-9.85 0-19.7-3.77-27.19-11.31-14.94-15.02-14.88-39.31 0.14-54.25L338.35 75.66c15.02-14.93 39.3-14.88 54.25 0.14 14.94 15.02 14.88 39.31-0.14 54.25L133.3 387.81c-7.49 7.45-17.27 11.17-27.06 11.17z"
-                            p-id="9394"></path>
-                    </svg>
-                </div>
-                <div class="btn">
-                    <Button @update="updateTheme" :theme="initTheme">
-                        <template #label1>
-                            <svg name="label1" t="1769078205047" viewBox="0 0 1024 1024" version="1.1"
-                                xmlns="http://www.w3.org/2000/svg" p-id="14801" width="100%" height="100%"
-                                fill="#cccccc">
-                                <path
-                                    d="M513.123 795.991c-76.156 0-147.753-29.658-201.603-83.508-53.849-53.849-83.504-125.444-83.504-201.596 0-76.153 29.657-147.749 83.504-201.598 53.85-53.851 125.446-83.508 201.603-83.508 76.147 0 147.742 29.658 201.593 83.508 53.853 53.852 83.511 125.447 83.511 201.598s-29.659 147.747-83.511 201.597c-53.852 53.85-125.445 83.507-201.593 83.507zM513.123 272.352c-131.529 0-238.534 107.007-238.534 238.535s107.006 238.533 238.534 238.533 238.533-107.005 238.533-238.533c0-131.529-107.006-238.535-238.533-238.535z"
-                                    fill="#CCCCCC" p-id="14802"></path>
-                                <path
-                                    d="M513.123 149.007c-12.861 0-23.285-10.426-23.285-23.285v-91.359c0-12.861 10.426-23.285 23.285-23.285s23.285 10.426 23.285 23.285v91.358c0 12.862-10.426 23.286-23.285 23.286z"
-                                    fill="#CCCCCC" p-id="14803"></path>
-                                <path
-                                    d="M513.123 1010.674c-12.861 0-23.285-10.426-23.285-23.285v-91.346c0-12.861 10.426-23.285 23.285-23.285s23.285 10.426 23.285 23.285v91.346c0 12.861-10.426 23.285-23.285 23.285z"
-                                    fill="#CCCCCC" p-id="14804"></path>
-                                <path
-                                    d="M240.764 261.825c-5.959 0-11.919-2.274-16.466-6.821l-64.592-64.591c-9.094-9.093-9.094-23.838 0-32.931 9.093-9.094 23.838-9.094 32.931 0l64.593 64.592c9.094 9.093 9.094 23.838 0 32.931-4.546 4.545-10.507 6.82-16.467 6.82z"
-                                    fill="#CCCCCC" p-id="14805"></path>
-                                <path
-                                    d="M850.050 871.111c-5.958 0-11.919-2.272-16.467-6.82l-64.593-64.593c-9.093-9.094-9.093-23.839 0-32.932 9.094-9.094 23.839-9.094 32.932 0l64.593 64.593c9.093 9.094 9.093 23.839 0 32.932-4.546 4.545-10.507 6.82-16.466 6.82z"
-                                    fill="#CCCCCC" p-id="14806"></path>
-                                <path
-                                    d="M36.59 534.183c-12.861 0.001-23.286-10.423-23.289-23.283-0.001-12.861 10.423-23.286 23.283-23.289l91.348-0.011c12.861-0.001 23.286 10.423 23.289 23.283 0.001 12.861-10.423 23.286-23.283 23.289l-91.348 0.011z"
-                                    fill="#CCCCCC" p-id="14807"></path>
-                                <path
-                                    d="M989.613 534.173h-91.346c-12.861 0-23.285-10.426-23.285-23.285s10.426-23.285 23.285-23.285h91.346c12.861 0 23.285 10.426 23.285 23.285s-10.426 23.285-23.285 23.285z"
-                                    fill="#CCCCCC" p-id="14808"></path>
-                                <path
-                                    d="M176.173 871.122c-5.959 0-11.919-2.272-16.466-6.82-9.094-9.094-9.094-23.839 0-32.932l64.593-64.593c9.094-9.094 23.838-9.094 32.931 0s9.094 23.839 0 32.932l-64.593 64.593c-4.546 4.546-10.506 6.82-16.466 6.82z"
-                                    p-id="14809"></path>
-                                <path
-                                    d="M785.457 261.825c-5.959 0-11.918-2.272-16.467-6.821-9.094-9.094-9.093-23.838 0.001-32.931l64.593-64.592c9.094-9.093 23.838-9.094 32.931 0s9.093 23.838-0.001 32.931l-64.593 64.592c-4.545 4.546-10.506 6.821-16.465 6.821z"
-                                    p-id="14810"></path>
-                            </svg>
-                        </template>
-
-                        <template #label2>
-                            <svg name="label2" t="1769078426441" viewBox="0 0 1024 1024" version="1.1"
-                                xmlns="http://www.w3.org/2000/svg" p-id="18549" width="100%" height="100%"
-                                fill="#CCCCCC">
-                                <path
-                                    d="M624.896 65.1264C824.7808 115.456 972.8 296.448 972.8 512c0 254.4896-206.3104 460.8-460.8 460.8-228.3008 0-417.8176-166.016-454.4-383.9232C103.552 605.3888 153.1136 614.4 204.8 614.4c240.3584 0 435.2-194.8416 435.2-435.2 0-38.656-5.0432-76.1856-14.5152-111.872l-0.6144-2.2016z m96.1536 124.6208l-4.352-2.7648 0.0256 1.024C712.0128 466.7136 484.6336 691.2 204.8 691.2c-9.1904 0-18.3296-0.256-27.4432-0.7168l-5.7344-0.4096 2.3808 4.48a384.4352 384.4352 0 0 0 329.3184 201.344L512 896c212.0704 0 384-171.9296 384-384 0-133.4528-68.6592-253.184-174.9504-322.2528z"
-                                    p-id="18550"></path>
-                            </svg>
-                        </template>
-                    </Button>
-                </div>
-            </div>
-
-
-            <div class="editor-size">
-                <svg v-show="isShowAll" @click="updateShowAll" t="1769084031871" class="icon" viewBox="0 0 1024 1024"
-                    version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="21987">
-                    <path
-                        d="M159.417291 157.449985l352.753089 343.768461 357.257683-345.263511 41.97602 1.49505-399.233704 422.216137-399.221424-422.216137L159.417291 157.449985zM159.417291 438.754812l352.753089 343.769484L869.428064 437.763229l41.97602 0.991584-399.233704 422.717557-399.221424-422.717557L159.417291 438.754812z"
-                        p-id="21988"></path>
-                </svg>
-                <svg v-show="!isShowAll" @click="updateShowAll" t="1769084825450" class="icon" viewBox="0 0 1024 1024"
-                    version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="22961">
-                    <path
-                        d="M112.947933 859.977319l399.221424-422.215114 399.233704 422.215114-41.97602 1.49505-357.257683-345.263511L159.417291 859.977319 112.947933 859.977319zM112.947933 578.671469l399.221424-422.717557 399.233704 422.717557-41.97602 0.991584L512.17038 234.901984l-352.753089 343.769484L112.947933 578.671469z"
-                        p-id="22962"></path>
-                </svg>
-            </div>
-        </div>
-        <!-- <div id="editor" ref="editor">
-            <TextEditor :theme="theme" :file-data="fileData" @save="handleSave" />
-        </div> -->
-
-        <div id="editor"> 
-            <TextEditor />
-        </div>
+    <div
+      :id="resultColor ? 'green' : 'red'"
+      class="popup-container"
+      :class="{ tip: isShowResultPopup }"
+      v-if="isShowResultPopup"
+    >
+      <div class="img"></div>
+      <div class="content">{{ resultPopupContent }}</div>
     </div>
+
+    <div v-if="showCloseDirty" class="dirty-overlay" @click.self="closeDirtyCancel">
+      <div class="dirty-dialog">
+        <h3 class="dirty-title">是否保存更改？</h3>
+        <p class="dirty-hint">「{{ closeDirtyTab ? tabTitle(closeDirtyTab) : '' }}」有未保存的修改。</p>
+        <div class="dirty-actions">
+          <button type="button" class="dirty-btn primary" @click="closeDirtySave">保存</button>
+          <button type="button" class="dirty-btn" @click="closeDirtyDiscard">不保存</button>
+          <button type="button" class="dirty-btn" @click="closeDirtyCancel">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <Teleport to="body">
+      <div
+        v-show="ctxVisible"
+        class="ctx-menu"
+        :style="{ left: ctxX + 'px', top: ctxY + 'px' }"
+        @mousedown.stop
+        @contextmenu.prevent
+      >
+        <template v-if="ctxKind === 'root'">
+          <button type="button" class="ctx-item" @click="ctxOpenFolder">打开文件夹…</button>
+          <button type="button" class="ctx-item" @click="ctxOpenFile">打开文件…</button>
+          <button type="button" class="ctx-item" @click="ctxNewFile">新建文件</button>
+          <button type="button" class="ctx-item" :disabled="!workspaceRoot" @click="ctxRefresh">刷新</button>
+        </template>
+        <template v-else>
+          <button type="button" class="ctx-item" @click="ctxSaveFile">保存</button>
+          <button type="button" class="ctx-item danger" @click="ctxDeleteFile">删除</button>
+        </template>
+      </div>
+    </Teleport>
+
+    <div class="vscode-root" :class="{ 'sidebar-resizing': sidebarResizing }">
+      <aside
+        class="sidebar"
+        :style="{ width: sidebarWidthPx + 'px' }"
+        @contextmenu="onRootContextMenu"
+      >
+        <div class="sidebar-sub" :title="workspaceLabel">{{ workspaceLabel }}</div>
+        <ul class="file-list">
+          <li
+            v-for="f in workspaceFiles"
+            :key="fileKey(f.name, f.type)"
+            class="file-item"
+            :class="{ active: isSidebarFileActive(f) }"
+            @click="openFileInTab(f)"
+            @contextmenu="onFileContextMenu($event, f)"
+          >
+            <span class="file-name">{{ f.name }}</span>
+            <span v-if="f.type" class="file-ext">.{{ f.type }}</span>
+          </li>
+          <li v-if="!workspaceFiles.length && !workspaceRoot" class="file-empty">
+            在左侧空白处右键，选择「打开文件夹」或「打开文件」
+          </li>
+          <li v-else-if="!workspaceFiles.length" class="file-empty">此文件夹中暂无文件</li>
+        </ul>
+      </aside>
+
+      <div
+        class="sidebar-resizer"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="拖动调整资源管理器宽度"
+        title="拖动调整宽度，双击恢复默认"
+        @mousedown="onSidebarResizeStart"
+        @dblclick.prevent="onSidebarResizerDblClick"
+      />
+
+      <div class="main-col">
+        <div class="tab-bar">
+          <div
+            v-for="tab in tabs"
+            :key="tab.id"
+            class="tab"
+            :class="{ active: tab.id === activeId }"
+            @click="activeId = tab.id"
+          >
+            <span v-if="isDirty(tab)" class="dirty-dot" title="未保存">●</span>
+            <span class="tab-label">{{ tabTitle(tab) }}</span>
+            <button type="button" class="tab-close" title="关闭" @click.stop="requestCloseTab(tab.id)">×</button>
+          </div>
+          <!-- <div v-if="!tabs.length" class="tab-placeholder">无打开的文件</div> -->
+        </div>
+
+        <div class="editor-shell">
+          <TextEditor
+            v-if="activeTab"
+            :key="activeTab.id"
+            :model-value="activeTab.content"
+            :language="highlightLanguageFromExtension(activeTab.type)"
+            @update:model-value="onEditorUpdate"
+          />
+          <div v-else class="empty-editor">从左侧打开文件，或在资源管理器空白处右键「新建文件」</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
 .sticky-note {
-    display: flex;
-    flex-direction: column;
-    justify-content: start;
-    min-height: 0;
-    height: 100%;
-    width: 100%;
-    background-color: var(--light-main-bgc);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  background-color: var(--light-main-bgc);
 }
 
-.sticky-note>.popup-container {
-    position: fixed;
-    left: 50%;
-    bottom: 20%;
-    z-index: 10000;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-sizing: border-box;
-    border-radius: 8px;
-    height: 60px;
-    background-color: rgb(251, 246, 246);
-    padding: 5px;
-    opacity: 0;
-    user-select: none;
+.delete-name {
+  margin: 10px 0 0;
+  font-size: 16px;
+  color: var(--light-font-second-color, #626262);
+  font-family: consolas, monospace;
+}
+
+.sticky-note > .popup-container {
+  position: fixed;
+  left: 50%;
+  bottom: 20%;
+  z-index: 10000;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  border-radius: 10px;
+  height: 68px;
+  background-color: rgb(251, 246, 246);
+  padding: 6px;
+  opacity: 0;
+  user-select: none;
 }
 
 .tip {
-    animation: up 2.5s ease;
+  animation: up 2.5s ease;
 }
 
 @keyframes up {
-    0% {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0%);
-    }
-
-    100% {
-        opacity: 0;
-        transform: translateX(-50%) translateY(-400%);
-    }
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-400%);
+  }
 }
 
 #red {
-    background-color: rgb(255, 141, 131);
+  background-color: rgb(255, 141, 131);
 }
 
 #green {
-    background-color: rgb(152, 243, 207);
+  background-color: rgb(152, 243, 207);
 }
 
-
-.sticky-note>.popup-container>.img {
-    width: 45px;
-    height: 45px;
-    background-image: url(../../public/water.jpg);
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    border-radius: 15px;
-    margin-left: 5px;
+.sticky-note > .popup-container > .img {
+  width: 50px;
+  height: 50px;
+  background-image: url(../../public/water.jpg);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 15px;
+  margin-left: 5px;
 }
 
-.sticky-note>.popup-container>.content {
-    margin: 0 10px 0 20px;
-    font-size: 24px;
-    color: white;
+.sticky-note > .popup-container > .content {
+  margin: 0 12px 0 22px;
+  font-size: 26px;
+  color: white;
 }
- 
+
 .popup-form {
-    display: flex;
-    flex-direction: column; 
-    justify-self: center;
-    align-self: center;
-    height: 100%;
-    font-size: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-self: center;
+  align-self: center;
+  height: 100%;
+  font-size: 26px;
 }
 
-
-.popup-form>label { 
-    margin: 20px 0;
+.popup-form > label {
+  margin: 22px 0;
 }
 
 .popup-form input {
-    padding: 10px 15px;
-    border: none;
-    font-size: 24px;
-    background-color: transparent;
+  padding: 12px 16px;
+  border: none;
+  font-size: 26px;
+  background-color: transparent;
 }
 
 .popup-form input:focus {
-    outline: none;
+  outline: none;
 }
 
-
-.func {
-    position: relative;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    height: 10%;
-    max-height: 10%;
-    border-radius: 20px 20px 0 0;
-    transition: height 0.2s ease-in-out;
-    user-select: none;
+.ctx-menu {
+  position: fixed;
+  z-index: 13000;
+  min-width: 200px;
+  padding: 6px 0;
+  border-radius: 8px;
+  background: var(--light-main-bgc, #f9f9f9);
+  border: 1px solid var(--light-option-second-bgc, #ddd);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
-.func:hover {
-    background-color: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.ctx-item {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 20px;
+  color: var(--light-font-color, #262626);
+  cursor: pointer;
 }
 
-.func>.func-main {
-    position: relative;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    width: 100%;
-    height: 100%;
+.ctx-item:hover:not(:disabled) {
+  background: var(--light-item-bgc, #eee);
 }
 
-.func>.func-main>.search {
-    position: absolute;
-    left: 30px;
+.ctx-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
-.func>.func-main .option {
-    margin-top: 10px;
-    margin-right: 40px;
-    cursor: pointer;
+.ctx-item.danger {
+  color: #c42b1c;
 }
 
-.func>.func-main .option>svg {
-    width: 40px;
-    height: 40px;
-    fill: var(--light-svg-fill);
+/* --- VS Code 布局 --- */
+.vscode-root {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
 }
 
-.func>.func-main>.option>svg:hover {
-    fill: var(--light-svg-hover-fill);
+.vscode-root.sidebar-resizing {
+  cursor: col-resize;
+  user-select: none;
 }
 
-
-.func>.func-main>.btn {
-    margin-right: 50px;
+.sidebar {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid var(--light-option-second-bgc, #e0e0e0);
+  background-color: var(--light-second-bgc, #f2f2f2);
+  user-select: none;
 }
 
-.func>.editor-size {
-    position: absolute;
-    left: 50%;
-    bottom: 0px;
-    transform: translateX(-50%);
-    width: 40%;
-    height: 30px;
-    cursor: pointer;
+.sidebar-resizer {
+  flex-shrink: 0;
+  width: 5px;
+  margin-left: -1px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 2;
+  position: relative;
 }
 
-.func>.editor-size>.icon {
-    visibility: hidden;
-    width: 100%;
-    height: 100%;
-    fill: var(--light-svg-fill);
-    transform: scaleX(3);
+.sidebar-resizer:hover,
+.vscode-root.sidebar-resizing .sidebar-resizer {
+  background: var(--light-option-second-bgc, #c8c8c8);
 }
 
-.func>.editor-size:hover .icon {
-    visibility: visible;
+.sidebar-resizer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--light-option-second-bgc, #e0e0e0);
+  pointer-events: none;
 }
 
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--light-font-color, #262626);
+}
 
-#editor {
-    position: relative;
-    height: 90%;
-    min-height: 0;
-    border-radius: 10px 10px 0 0;
-    overflow: hidden;
-    transition: height 0.2s ease-in-out;
-    background-color: #f9f9f9 !important;
+.sidebar-title {
+  letter-spacing: 0.02em;
+}
+
+.sidebar-sub {
+  padding: 0 14px 8px;
+  font-size: 25px;
+  color: var(--light-font-second-color, #626262);
+  word-break: break-all;
+  max-height: 44px;
+  overflow: hidden;
+  line-height: 1.35;
+}
+
+.file-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.file-item {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 15px 14px;
+  font-size: 25px;
+  font-family: consolas, Microsoft YaHei;
+  cursor: pointer;
+  color: var(--light-font-color, #262626);
+}
+
+.file-item:hover {
+  background-color: var(--light-item-bgc, #f5f5f5);
+}
+
+.file-item.active {
+  background-color: var(--light-option-bgc, #f9f9f9);
+  border-left: 3px solid #0078d4;
+  padding-left: 11px;
+}
+
+.file-ext {
+  opacity: 0.75;
+  font-size: 25px;
+}
+
+.file-empty {
+  padding: 14px;
+  font-size: 14px;
+  color: var(--light-font-second-color, #626262);
+  line-height: 1.55;
+}
+
+.main-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--light-option-second-bgc, #e0e0e0);
+  background-color: var(--light-main-bgc, #f9f9f9);
+}
+
+.top-hint {
+  font-size: 15px;
+  color: var(--light-font-second-color, #626262);
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.tab-bar {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  min-height: 44px;
+  background-color: var(--light-second-bgc, #ececec);
+  border-bottom: 1px solid var(--light-option-second-bgc, #ddd);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  max-width: 260px;
+  font-size: 25px;
+  font-family: consolas, Microsoft YaHei;
+  color: var(--light-font-second-color, #626262);
+  border-right: 1px solid var(--light-option-second-bgc, #ddd);
+  cursor: pointer;
+  white-space: nowrap;
+  background-color: var(--light-second-bgc, #ececec);
+}
+
+.tab.active {
+  background-color: var(--light-main-bgc, #f9f9f9);
+  color: var(--light-font-color, #262626);
+  border-bottom: 2px solid #0078d4;
+}
+
+.tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dirty-dot {
+  color: #0078d4;
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.tab-close {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 6px;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.65;
+  flex-shrink: 0;
+}
+
+.tab-close:hover {
+  opacity: 1;
+}
+
+.tab-placeholder {
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--light-font-second-color, #626262);
+}
+
+.editor-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  /* 与编辑区同色，避免内容未撑满时下方透出 main 底色 */
+  background-color: var(--light-todo-editor-bgc, #f9f9f9);
+}
+
+.editor-shell :deep(.editor-container) {
+  flex: 1;
+  min-height: 0;
+}
+
+.empty-editor {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  font-size: 20px;
+  color: var(--light-font-second-color, #626262);
+  background-color: var(--light-todo-editor-bgc, #f9f9f9);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.dirty-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dirty-dialog {
+  width: min(480px, 90vw);
+  padding: 24px 26px;
+  border-radius: 10px;
+  background: var(--light-main-bgc, #f9f9f9);
+  color: var(--light-font-color, #262626);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.dirty-title {
+  margin: 0 0 10px;
+  font-size: 25px;
+}
+
+.dirty-hint {
+  margin: 0 0 22px;
+  font-size: 25px;
+  color: var(--light-font-second-color, #626262);
+  line-height: 1.45;
+}
+
+.dirty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.dirty-btn {
+  font-size: 20px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--light-svg-fill, #999);
+  background: var(--light-option-bgc, #fff);
+  color: var(--light-font-color, #262626);
+  cursor: pointer;
+}
+
+.dirty-btn.primary {
+  background: #0078d4;
+  border-color: #0078d4;
+  color: #fff;
+}
+
+.dirty-btn:hover {
+  filter: brightness(1.03);
 }
 </style>

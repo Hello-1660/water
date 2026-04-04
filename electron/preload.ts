@@ -35,6 +35,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	openAllFiles: (dir: String = DATADIR): Promise<{name: string, type: string}[]> => ipcRenderer.invoke('file:open-all', dir),
 	// 删除文件
 	deleteFile: (name: string, dir: string = DATADIR): Promise<boolean> => ipcRenderer.invoke('file:delete', name, dir),
+	// 便签：选择文件夹
+	pickWorkspaceFolder: (): Promise<string | null> => ipcRenderer.invoke('dialog:open-directory'),
+	// 便签：选择单个文件（返回目录用于作为工作区）
+	pickFileToOpen: (): Promise<{
+		fullPath: string
+		dir: string
+		name: string
+		type: string
+	} | null> => ipcRenderer.invoke('dialog:open-file'),
+	stickyGetLastWorkspace: (): Promise<string | null> => ipcRenderer.invoke('sticky:get-last-workspace'),
+	stickySetLastWorkspace: (folder: string | null): Promise<void> =>
+		ipcRenderer.invoke('sticky:set-last-workspace', folder),
 })
 
 // 补充类型声明（避免Vue里报类型错误）
@@ -56,6 +68,15 @@ declare global {
 			openFile: (name: string, dir: string) => Promise<string>
 			openAllFiles: (dir: String) => Promise<{name: string, type: string}[]>
 			deleteFile: (name: string, dir: string) => Promise<boolean>
+			pickWorkspaceFolder: () => Promise<string | null>
+			pickFileToOpen: () => Promise<{
+				fullPath: string
+				dir: string
+				name: string
+				type: string
+			} | null>
+			stickyGetLastWorkspace: () => Promise<string | null>
+			stickySetLastWorkspace: (folder: string | null) => Promise<void>
 		}
 	}
 }

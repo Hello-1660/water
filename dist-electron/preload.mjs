@@ -31,5 +31,11 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
   // 获取所有文件信息
   openAllFiles: (dir = DATADIR) => electron.ipcRenderer.invoke("file:open-all", dir),
   // 删除文件
-  deleteFile: (name, dir = DATADIR) => electron.ipcRenderer.invoke("file:delete", name, dir)
+  deleteFile: (name, dir = DATADIR) => electron.ipcRenderer.invoke("file:delete", name, dir),
+  // 便签：选择文件夹
+  pickWorkspaceFolder: () => electron.ipcRenderer.invoke("dialog:open-directory"),
+  // 便签：选择单个文件（返回目录用于作为工作区）
+  pickFileToOpen: () => electron.ipcRenderer.invoke("dialog:open-file"),
+  stickyGetLastWorkspace: () => electron.ipcRenderer.invoke("sticky:get-last-workspace"),
+  stickySetLastWorkspace: (folder) => electron.ipcRenderer.invoke("sticky:set-last-workspace", folder)
 });

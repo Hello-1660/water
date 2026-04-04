@@ -7,13 +7,6 @@ import { computed, ref, watch } from 'vue'
 const TODODIR = 'todo'
 const FILETYPE = 'txt'
 
-const fileData = computed(() => {
-    return {
-        type: 'text',
-        content: currentTodo.value.content
-    }
-})
-
 interface Todo {
     name: string
     content: string
@@ -31,15 +24,6 @@ const showEndTime = computed(() => {
     if (currentTodo.value.endTime === '') return ['', '', '']
     return currentTodo.value.endTime.split('T')[0].split('-')
 })
-
-const handleSave = (msg: any) => {
-    if (msg.msg === 'success') {
-        if (msg.data.text == '') return 
-
-        isShowPopup.value = true
-        fileData.value.content = msg.data.text
-    }
-}
 
 const isShowStatic = ref(false)
 const isShowYear = ref(false)
@@ -102,7 +86,7 @@ const openTodo = (content: Todo) => {
 const isShowPopup = ref(false)
 const selectEndTime = ref('')
 const handleSavePopupSure = () => {
-    saveTodo(fileData.value.content, selectEndTime.value)
+    saveTodo(currentTodo.value.content, selectEndTime.value)
     selectEndTime.value = ''
 }
 
@@ -184,10 +168,7 @@ const handleSavePopupDel = () => {
             </div>
 
             <div class="edit">
-                <TextEditor 
-                :fileData="fileData"
-                @save="handleSave"
-                />
+                <TextEditor v-model="currentTodo.content" />
             </div>
         </div>
     </div>

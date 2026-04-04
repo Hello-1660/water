@@ -121,6 +121,7 @@ const change2LightTheme = () => {
     document.documentElement.style.setProperty('--light-todo-editor-bgc', '#f9f9f9')
     document.documentElement.style.setProperty('--light-active-router-bgc', 'linear-gradient(90deg, #5f5f5f 10%, #5f5f5f 10%, rgba(0, 0, 0, 0) 10%)')
     document.documentElement.style.setProperty('--light-scrollbar-bgc', '#ebebeb')
+    document.documentElement.style.setProperty('--light-caret-color', '#3d4a6b')
 }
 
 const change2NightTheme = () => {
@@ -139,6 +140,7 @@ const change2NightTheme = () => {
     document.documentElement.style.setProperty('--light-todo-editor-bgc', '#27273a')
     document.documentElement.style.setProperty('--light-active-router-bgc', 'linear-gradient(90deg, #f6f0ff 10%, #f6f0ff 10%, rgba(0, 0, 0, 0) 10%)')
     document.documentElement.style.setProperty('--light-scrollbar-bgc', '#1e1e2d')
+    document.documentElement.style.setProperty('--light-caret-color', '#d7d6df')
 }
 
 const resultColor = ref(false)
